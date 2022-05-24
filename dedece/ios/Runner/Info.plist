@@ -45,5 +45,9 @@
 	<false/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+    <string>This is a dashcam app, what do you expect?</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Microphone is used for additional sensor data</string>
 </dict>
 </plist>
