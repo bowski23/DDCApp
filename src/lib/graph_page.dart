@@ -18,10 +18,6 @@ class _GraphPageState extends State<GraphPage> {
 
   final _streamSubscriptions = <StreamSubscription<dynamic>>[];
 
-  initState() {
-    super.initState();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -52,8 +48,98 @@ class _GraphPageState extends State<GraphPage> {
                   Text("AccelerometerEvents: ${snapshot.data?.x}, ${snapshot.data?.y}, ${snapshot.data?.z}")),
               stream: _sensors.accelerometerEvents),
           Row(
-            children: [],
+            children: [
+              SizedBox(
+                child: ThreeDimDataLineChart(eventStream: accelerometerEvents),
+                width: 300,
+                height: 300,
+              )
+            ],
           )
         ]));
   }
+}
+
+class ThreeDimDataLineChart extends StatefulWidget {
+  final Stream eventStream;
+
+  const ThreeDimDataLineChart({Key? key, required Stream this.eventStream}) : super(key: key);
+
+  @override
+  State<ThreeDimDataLineChart> createState() => _ThreeDimDataLineChartState(eventStream);
+}
+
+class _ThreeDimDataLineChartState extends State<ThreeDimDataLineChart> {
+  Stream eventStream;
+  List<_EventWrapper> data = [];
+  Series<_EventWrapper, DateTime>? displayedX;
+  Series<_EventWrapper, DateTime>? displayedY;
+  Series<_EventWrapper, DateTime>? displayedZ;
+  StreamSubscription? _subscription;
+
+  Timer? periodicUpdater;
+
+  static const int dataPointLimit = 200;
+
+  _ThreeDimDataLineChartState(this.eventStream);
+
+  @override
+  initState() {
+    super.initState();
+
+    displayedX =
+        Series(id: "x", data: data, domainFn: (event, index) => event.time, measureFn: (event, index) => event.x);
+    displayedY =
+        Series(id: "y", data: data, domainFn: (event, index) => event.time, measureFn: (event, index) => event.y);
+    displayedZ =
+        Series(id: "z", data: data, domainFn: (event, index) => event.time, measureFn: (event, index) => event.z);
+
+    _subscription = eventStream.listen(
+      (event) => updateData(event),
+    );
+
+    periodicUpdater = Timer.periodic(Duration(milliseconds: 100), (timer) => setState(() {}));
+  }
+
+  updateData(event) {
+    if (data.length > dataPointLimit) data.removeAt(0);
+
+    var threeDimEvent = event as AccelerometerEvent;
+    data.add(_EventWrapper(event, DateTime.now()));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (displayedX == null || displayedY == null || displayedZ == null) {
+      return Text("loading");
+    }
+    return TimeSeriesChart(
+      [displayedX!, displayedY!, displayedZ!],
+      animate: false,
+    );
+  }
+
+  @override
+  void dispose() {
+    if (periodicUpdater != null) {
+      periodicUpdater!.cancel();
+    }
+    if (_subscription != null) {
+      _subscription!.cancel();
+    }
+    super.dispose();
+  }
+}
+
+class _EventWrapper<T> {
+  T event;
+  DateTime time;
+
+  _EventWrapper(this.event, this.time);
+
+  double get x => (event as AccelerometerEvent).x;
+
+  double get y => (event as AccelerometerEvent).y;
+
+  double get z => (event as AccelerometerEvent).z;
 }
