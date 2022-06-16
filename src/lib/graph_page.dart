@@ -98,7 +98,8 @@ class _ThreeDimDataLineChartState extends State<ThreeDimDataLineChart> {
       (event) => updateData(event),
     );
 
-    periodicUpdater = Timer.periodic(Duration(milliseconds: 100), (timer) => setState(() {}));
+    //update every 16ms so that we get 60 fps
+    periodicUpdater = Timer.periodic(Duration(milliseconds: 16), (timer) => setState(() {}));
   }
 
   updateData(event) {
