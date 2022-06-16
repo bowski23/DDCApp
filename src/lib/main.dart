@@ -1,4 +1,5 @@
 import 'package:camera/camera.dart';
+import 'package:ddcapp/object_detector_view.dart';
 import 'package:ddcapp/provider/location_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -20,5 +21,5 @@ Future<void> main() async {
       create: (context) => LocationProvider(),
       child: GoogleMapPage(),
     )
-  ], child: MaterialApp(home: const CameraHomePage())));
+  ], child: MaterialApp(home: ObjectDetectorView())));
 }
