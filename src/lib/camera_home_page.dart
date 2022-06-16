@@ -1,6 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:ddcapp/settings_page.dart';
 import 'package:flutter/material.dart';
+import 'google_map_page.dart';
 import 'helpers/settings.dart';
 import 'main.dart';
 import 'graph_page.dart';
@@ -65,7 +66,9 @@ class _CameraHomePageState extends State<CameraHomePage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            ElevatedButton(child: Text("Map"), onPressed: () => print("pressed")),
+            ElevatedButton(
+                child: Text("Map"),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GoogleMapPage()))),
             Column(
               children: [
                 ElevatedButton(child: Text("Picture"), onPressed: () => print("pressed")),
