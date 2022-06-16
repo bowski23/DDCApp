@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:charts_flutter/flutter.dart';
 
 class GraphPage extends StatefulWidget {
   const GraphPage({Key? key}) : super(key: key);
@@ -14,24 +15,11 @@ class GraphPage extends StatefulWidget {
 class _GraphPageState extends State<GraphPage> {
   final Battery _battery = Battery();
   final Sensors _sensors = Sensors();
-  MagnetometerEvent _magnetState = MagnetometerEvent(0, 0, 0);
-  AccelerometerEvent _accelState = AccelerometerEvent(0, 0, 0);
+
   final _streamSubscriptions = <StreamSubscription<dynamic>>[];
 
   initState() {
     super.initState();
-    _streamSubscriptions.add(_sensors.magnetometerEvents.listen((event) {
-      setState(() {
-        _magnetState = event;
-      });
-    }));
-
-    _streamSubscriptions.add(_sensors.accelerometerEvents.listen((event) {
-      setState(() {
-        _accelState = event;
-        print("anything");
-      });
-    }));
   }
 
   @override
@@ -44,20 +32,28 @@ class _GraphPageState extends State<GraphPage> {
             textScaleFactor: 1.5,
           ),
           FutureBuilder(
-            builder: ((context, AsyncSnapshot<BatteryState> snapshot) =>
-                Text("Battery state: " + snapshot.data.toString())),
+            builder: ((context, AsyncSnapshot<BatteryState> snapshot) => Text("Battery state: ${snapshot.data?.name}")),
             future: _battery.batteryState,
           ),
           FutureBuilder(
-            builder: ((context, AsyncSnapshot<int> snapshot) => Text("Battery level: " + snapshot.data.toString())),
+            builder: ((context, AsyncSnapshot<int> snapshot) => Text("Battery level: ${snapshot.data}")),
             future: _battery.batteryLevel,
           ),
           const Text(
             "Sensors:",
             textScaleFactor: 1.5,
           ),
-          Text("Magnetometer: ${_magnetState.x}, ${_magnetState.y}, ${_magnetState.z}"),
-          Text("Accelerometer: ${_accelState.x}, ${_accelState.y}, ${_accelState.z}"),
+          StreamBuilder(
+              builder: ((context, AsyncSnapshot<MagnetometerEvent> snapshot) =>
+                  Text("Magnetometer: ${snapshot.data?.x}, ${snapshot.data?.y}, ${snapshot.data?.z}")),
+              stream: _sensors.magnetometerEvents),
+          StreamBuilder(
+              builder: ((context, AsyncSnapshot<AccelerometerEvent> snapshot) =>
+                  Text("AccelerometerEvents: ${snapshot.data?.x}, ${snapshot.data?.y}, ${snapshot.data?.z}")),
+              stream: _sensors.accelerometerEvents),
+          Row(
+            children: [],
+          )
         ]));
   }
 }

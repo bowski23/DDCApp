@@ -1,5 +1,7 @@
 import 'package:camera/camera.dart';
+import 'package:ddcapp/settings_page.dart';
 import 'package:flutter/material.dart';
+import 'helpers/settings.dart';
 import 'main.dart';
 import 'graph_page.dart';
 
@@ -18,7 +20,14 @@ class _CameraHomePageState extends State<CameraHomePage> {
   @override
   void initState() {
     super.initState();
-    controller = CameraController(cameras[0], ResolutionPreset.max);
+    setCamera(Settings.instance.chosenCamera.value);
+    Settings.instance.chosenCamera.notifier.addListener(() {
+      setCamera(Settings.instance.chosenCamera.value);
+    });
+  }
+
+  setCamera(int index) {
+    controller = CameraController(cameras[index], ResolutionPreset.max);
     controller.initialize().then((_) {
       if (!mounted) {
         return;
@@ -60,7 +69,9 @@ class _CameraHomePageState extends State<CameraHomePage> {
             Column(
               children: [
                 ElevatedButton(child: Text("Picture"), onPressed: () => print("pressed")),
-                ElevatedButton(child: Text("Settings"), onPressed: () => print("pressed")),
+                ElevatedButton(
+                    child: Text("Settings"),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage()))),
               ],
             ),
             Container(
