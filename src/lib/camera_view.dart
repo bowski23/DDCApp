@@ -1,8 +1,13 @@
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:ddcapp/google_map_page.dart';
+import 'package:ddcapp/graph_page.dart';
+import 'package:ddcapp/helpers/settings.dart';
+import 'package:ddcapp/settings_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -40,27 +45,20 @@ class _CameraViewState extends State<CameraView> {
   double zoomLevel = 0.0, minZoomLevel = 0.0, maxZoomLevel = 0.0;
   final bool _allowPicker = true;
   bool _changingCameraLens = false;
+  bool _recording = false;
 
   @override
   void initState() {
     super.initState();
 
     _imagePicker = ImagePicker();
+    _cameraIndex = Settings.instance.chosenCamera.value;
 
-    if (cameras.any(
-      (element) => element.lensDirection == widget.initialDirection && element.sensorOrientation == 90,
-    )) {
-      _cameraIndex = cameras.indexOf(
-        cameras.firstWhere(
-            (element) => element.lensDirection == widget.initialDirection && element.sensorOrientation == 90),
-      );
-    } else {
-      _cameraIndex = cameras.indexOf(
-        cameras.firstWhere(
-          (element) => element.lensDirection == widget.initialDirection,
-        ),
-      );
-    }
+    Settings.instance.chosenCamera.notifier.addListener(() {
+      _cameraIndex = Settings.instance.chosenCamera.value;
+      _stopLiveFeed();
+      _startLiveFeed();
+    });
 
     _startLiveFeed();
   }
@@ -74,26 +72,14 @@ class _CameraViewState extends State<CameraView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        actions: [
-          if (_allowPicker)
-            Padding(
-              padding: EdgeInsets.only(right: 20.0),
-              child: GestureDetector(
-                onTap: _switchScreenMode,
-                child: Icon(
-                  _mode == ScreenMode.liveFeed
-                      ? Icons.photo_library_outlined
-                      : (Platform.isIOS ? Icons.camera_alt_outlined : Icons.camera),
-                ),
-              ),
-            ),
-        ],
-      ),
-      body: _body(),
-      floatingActionButton: _floatingActionButton(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      backgroundColor: Colors.black,
+      body: OrientationBuilder(builder: (context, orientation) {
+        if (orientation == Orientation.portrait) {
+          return _portraitBody();
+        } else {
+          return _landscapeBody(context);
+        }
+      }),
     );
   }
 
@@ -104,25 +90,102 @@ class _CameraViewState extends State<CameraView> {
         height: 70.0,
         width: 70.0,
         child: FloatingActionButton(
+          onPressed: _switchLiveCamera,
           child: Icon(
             Platform.isIOS ? Icons.flip_camera_ios_outlined : Icons.flip_camera_android_outlined,
             size: 40,
           ),
-          onPressed: _switchLiveCamera,
         ));
   }
 
-  Widget _body() {
-    Widget body;
-    if (_mode == ScreenMode.liveFeed) {
-      body = _liveFeedBody();
-    } else {
-      body = _galleryBody();
+  Widget _landscapeBody(BuildContext context) {
+    if (_controller?.value.isInitialized == false) {
+      return Container();
     }
-    return body;
+
+    return Row(children: [
+      Expanded(
+        flex: 7,
+        child: Stack(
+          fit: StackFit.loose,
+          children: <Widget>[
+            Center(
+              child: _changingCameraLens
+                  ? const Center(
+                      child: Text('Changing camera lens'),
+                    )
+                  : CameraPreview(_controller!),
+            ),
+            if (widget.customPaint != null) widget.customPaint!,
+          ],
+        ),
+      ),
+      Expanded(
+        flex: 1,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: _menuItems(context),
+        ),
+      )
+    ]);
   }
 
-  Widget _liveFeedBody() {
+  List<Widget> _menuItems(BuildContext context) {
+    return [
+      Expanded(
+          flex: 1,
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            icon: const Icon(Icons.settings_outlined),
+            color: Colors.white,
+            iconSize: 30,
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage())),
+          )),
+      Expanded(
+          flex: 1,
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            icon: const Icon(Icons.stacked_line_chart_outlined),
+            color: Colors.white,
+            iconSize: 30,
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const GraphPage())),
+          )),
+      Expanded(
+          flex: 1,
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            iconSize: 60,
+            icon: Stack(children: [
+              const Center(child: Icon(Icons.circle_outlined, size: 60)),
+              Center(
+                child: Icon(
+                  Icons.circle,
+                  size: 40,
+                  color: _recording ? Colors.red : Colors.grey,
+                ),
+              )
+            ]),
+            color: Colors.white,
+            onPressed: () {
+              setState(() {
+                _recording = !_recording;
+              });
+            },
+          )),
+      Expanded(
+        flex: 2,
+        child: TextButton(
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const GoogleMapPage())),
+          child: const Card(
+            child: Text("Really Big Map that flows over the camera screen"),
+          ),
+        ),
+      )
+    ];
+  }
+
+  Widget _portraitBody() {
     if (_controller?.value.isInitialized == false) {
       return Container();
     }
@@ -153,66 +216,9 @@ class _CameraViewState extends State<CameraView> {
             ),
           ),
           if (widget.customPaint != null) widget.customPaint!,
-          Positioned(
-            bottom: 100,
-            left: 50,
-            right: 50,
-            child: Slider(
-              value: zoomLevel,
-              min: minZoomLevel,
-              max: maxZoomLevel,
-              onChanged: (newSliderValue) {
-                setState(() {
-                  zoomLevel = newSliderValue;
-                  _controller!.setZoomLevel(zoomLevel);
-                });
-              },
-              divisions: (maxZoomLevel - 1).toInt() < 1 ? null : (maxZoomLevel - 1).toInt(),
-            ),
-          )
         ],
       ),
     );
-  }
-
-  Widget _galleryBody() {
-    return ListView(shrinkWrap: true, children: [
-      _image != null
-          ? SizedBox(
-              height: 400,
-              width: 400,
-              child: Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  Image.file(_image!),
-                  if (widget.customPaint != null) widget.customPaint!,
-                ],
-              ),
-            )
-          : Icon(
-              Icons.image,
-              size: 200,
-            ),
-      Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16),
-        child: ElevatedButton(
-          child: Text('From Gallery'),
-          onPressed: () => _getImage(ImageSource.gallery),
-        ),
-      ),
-      Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16),
-        child: ElevatedButton(
-          child: Text('Take a picture'),
-          onPressed: () => _getImage(ImageSource.camera),
-        ),
-      ),
-      if (_image != null)
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text('${_path == null ? '' : 'Image path: $_path'}\n\n${widget.text ?? ''}'),
-        ),
-    ]);
   }
 
   Future _getImage(ImageSource source) async {
@@ -223,18 +229,6 @@ class _CameraViewState extends State<CameraView> {
     final pickedFile = await _imagePicker?.pickImage(source: source);
     if (pickedFile != null) {
       _processPickedFile(pickedFile);
-    }
-    setState(() {});
-  }
-
-  void _switchScreenMode() {
-    _image = null;
-    if (_mode == ScreenMode.liveFeed) {
-      _mode = ScreenMode.gallery;
-      _stopLiveFeed();
-    } else {
-      _mode = ScreenMode.liveFeed;
-      _startLiveFeed();
     }
     setState(() {});
   }

@@ -40,23 +40,18 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      CameraView(
-        // You must wait until the controller is initialized before displaying the
-        // camera preview. Use a FutureBuilder to display a loading spinner until the
-        // controller has finished initializing.
-        title: 'Object Detector',
-        customPaint: _customPaint,
-        text: _text,
-        onImage: (inputImage) {
-          processImage(inputImage);
-        },
-        initialDirection: CameraLensDirection.back,
-      ),
-      ElevatedButton(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage())),
-          child: Icon(Icons.settings_outlined))
-    ]);
+    return CameraView(
+      // You must wait until the controller is initialized before displaying the
+      // camera preview. Use a FutureBuilder to display a loading spinner until the
+      // controller has finished initializing.
+      title: 'DashCam Home',
+      customPaint: _customPaint,
+      text: _text,
+      onImage: (inputImage) {
+        processImage(inputImage);
+      },
+      initialDirection: CameraLensDirection.back,
+    );
   }
 
   void _initializeDetector() async {

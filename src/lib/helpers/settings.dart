@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class Settings {
   //all settings should be defined here
   Setting<int> chosenCamera = Setting("chosenCamera", 0);
-  Setting<bool> useMachineLearning = Setting("useMachineLearning", true);
+  Setting<bool> useMachineLearning = Setting("useMachineLearning", false);
 
   //below is the actual class definition
   static Settings? _instance;
