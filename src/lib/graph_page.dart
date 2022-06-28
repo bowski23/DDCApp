@@ -22,41 +22,57 @@ class _GraphPageState extends State<GraphPage> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(title: Text("Graphs")),
-        body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text(
-            "Battery:",
-            textScaleFactor: 1.5,
+        body: Row(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.start, children: [
+          Expanded(
+            flex: 1,
+            child: Column(children: _texts()),
           ),
-          FutureBuilder(
-            builder: ((context, AsyncSnapshot<BatteryState> snapshot) => Text("Battery state: ${snapshot.data?.name}")),
-            future: _battery.batteryState,
-          ),
-          FutureBuilder(
-            builder: ((context, AsyncSnapshot<int> snapshot) => Text("Battery level: ${snapshot.data}")),
-            future: _battery.batteryLevel,
-          ),
-          const Text(
-            "Sensors:",
-            textScaleFactor: 1.5,
-          ),
-          StreamBuilder(
-              builder: ((context, AsyncSnapshot<MagnetometerEvent> snapshot) =>
-                  Text("Magnetometer: ${snapshot.data?.x}, ${snapshot.data?.y}, ${snapshot.data?.z}")),
-              stream: _sensors.magnetometerEvents),
-          StreamBuilder(
-              builder: ((context, AsyncSnapshot<AccelerometerEvent> snapshot) =>
-                  Text("AccelerometerEvents: ${snapshot.data?.x}, ${snapshot.data?.y}, ${snapshot.data?.z}")),
-              stream: _sensors.accelerometerEvents),
-          Row(
-            children: [
-              SizedBox(
-                child: ThreeDimDataLineChart(eventStream: accelerometerEvents),
-                width: 300,
-                height: 300,
-              )
-            ],
+          Expanded(
+            flex: 2,
+            child: Column(
+              children: _charts(),
+            ),
           )
         ]));
+  }
+
+  List<Widget> _charts() {
+    return [
+      SizedBox(
+        width: 300,
+        height: 300,
+        child: ThreeDimDataLineChart(eventStream: accelerometerEvents),
+      )
+    ];
+  }
+
+  List<Widget> _texts() {
+    return [
+      const Text(
+        "Battery:",
+        textScaleFactor: 1.5,
+      ),
+      FutureBuilder(
+        builder: ((context, AsyncSnapshot<BatteryState> snapshot) => Text("Battery state: ${snapshot.data?.name}")),
+        future: _battery.batteryState,
+      ),
+      FutureBuilder(
+        builder: ((context, AsyncSnapshot<int> snapshot) => Text("Battery level: ${snapshot.data}")),
+        future: _battery.batteryLevel,
+      ),
+      const Text(
+        "Sensors:",
+        textScaleFactor: 1.5,
+      ),
+      StreamBuilder(
+          builder: ((context, AsyncSnapshot<MagnetometerEvent> snapshot) =>
+              Text("Magnetometer: ${snapshot.data?.x}, ${snapshot.data?.y}, ${snapshot.data?.z}")),
+          stream: _sensors.magnetometerEvents),
+      StreamBuilder(
+          builder: ((context, AsyncSnapshot<AccelerometerEvent> snapshot) =>
+              Text("AccelerometerEvents: ${snapshot.data?.x}, ${snapshot.data?.y}, ${snapshot.data?.z}")),
+          stream: _sensors.accelerometerEvents),
+    ];
   }
 }
 

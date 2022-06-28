@@ -37,7 +37,12 @@ class _SettingsPageState extends State<SettingsPage> {
               cameraDropdownItems,
               onChanged: () => setState(() {}),
               description: "Choose which camera you would like to use.",
-              icon: Icons.camera_alt,
+              icon: Icons.camera_alt_outlined,
+            ),
+            BooleanSettingWidget(
+              Settings.instance.useMachineLearning,
+              description: "Use machine learning?",
+              icon: Icons.smart_toy_outlined,
             )
           ],
         ));
@@ -79,6 +84,24 @@ class SettingWidget<T> extends StatelessWidget {
             Container(constraints: BoxConstraints(minWidth: 100), child: child, margin: EdgeInsets.only(left: 10))
           ],
         ));
+  }
+}
+
+class BooleanSettingWidget extends StatelessWidget {
+  Setting<bool> setting;
+  BooleanSettingWidget(this.setting, {this.description = '', this.icon, this.onChanged});
+  String description;
+  IconData? icon;
+  VoidCallback? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingWidget<bool>(
+      setting,
+      child: Switch(value: setting.value, onChanged: (val) => setting.value = val),
+      description: description,
+      icon: icon,
+    );
   }
 }
 
