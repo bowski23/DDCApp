@@ -87,50 +87,69 @@ class SettingWidget<T> extends StatelessWidget {
   }
 }
 
-class BooleanSettingWidget extends StatelessWidget {
-  Setting<bool> setting;
-  BooleanSettingWidget(this.setting, {this.description = '', this.icon, this.onChanged});
-  String description;
-  IconData? icon;
-  VoidCallback? onChanged;
+class BooleanSettingWidget extends StatefulWidget {
+  final Setting<bool> setting;
+  final String description;
+  final IconData? icon;
+  final VoidCallback? onChanged;
 
+  const BooleanSettingWidget(this.setting, {Key? key, this.description = '', this.icon, this.onChanged})
+      : super(key: key);
+
+  @override
+  State<BooleanSettingWidget> createState() => _BooleanSettingWidgetState();
+}
+
+class _BooleanSettingWidgetState extends State<BooleanSettingWidget> {
   @override
   Widget build(BuildContext context) {
     return SettingWidget<bool>(
-      setting,
-      child: Switch(value: setting.value, onChanged: (val) => setting.value = val),
-      description: description,
-      icon: icon,
+      widget.setting,
+      description: widget.description,
+      icon: widget.icon,
+      child: Switch(
+          value: widget.setting.value,
+          onChanged: (val) => setState(() {
+                widget.setting.value = val;
+              })),
     );
   }
 }
 
-class DropDownSettingWidget<T> extends StatelessWidget {
-  List<DropdownMenuItem<T>> items;
-  Setting<T> setting;
-  String description;
-  IconData? icon;
-  VoidCallback? onChanged;
+class DropDownSettingWidget<T> extends StatefulWidget {
+  final List<DropdownMenuItem<T>> items;
+  final Setting<T> setting;
+  final String description;
+  final IconData? icon;
+  final VoidCallback? onChanged;
 
-  DropDownSettingWidget(this.setting, this.items, {this.description = '', this.icon, this.onChanged});
+  const DropDownSettingWidget(this.setting, this.items, {Key? key, this.description = '', this.icon, this.onChanged})
+      : super(key: key);
 
+  @override
+  State<DropDownSettingWidget<T>> createState() => _DropDownSettingWidgetState<T>();
+}
+
+class _DropDownSettingWidgetState<T> extends State<DropDownSettingWidget<T>> {
   void valueChanged(T? newValue) {
     if (newValue == null) return;
-    setting.value = newValue;
-    if (onChanged != null) onChanged!.call();
+    setState(() {
+      widget.setting.value = newValue;
+    });
+    if (widget.onChanged != null) widget.onChanged!.call();
   }
 
   @override
   Widget build(BuildContext context) {
     return SettingWidget<T>(
-      setting,
+      widget.setting,
+      description: widget.description,
+      icon: widget.icon,
       child: DropdownButton<T>(
-        items: items,
+        items: widget.items,
         onChanged: valueChanged,
-        value: setting.value,
+        value: widget.setting.value,
       ),
-      description: description,
-      icon: icon,
     );
   }
 }
