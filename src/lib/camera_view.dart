@@ -7,16 +7,17 @@ import 'package:ddcapp/helpers/settings.dart';
 import 'package:ddcapp/settings_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 
 import 'main.dart';
+import 'provider/location_provider.dart';
 
 enum ScreenMode { liveFeed, gallery }
 
 class CameraView extends StatefulWidget {
-  CameraView(
+  const CameraView(
       {Key? key,
       required this.title,
       required this.customPaint,
@@ -43,13 +44,16 @@ class _CameraViewState extends State<CameraView> {
   ImagePicker? _imagePicker;
   int _cameraIndex = 0;
   double zoomLevel = 0.0, minZoomLevel = 0.0, maxZoomLevel = 0.0;
-  final bool _allowPicker = true;
   bool _changingCameraLens = false;
   bool _recording = false;
 
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<LocationProvider>(context, listen: false).initalization();
+    });
 
     _imagePicker = ImagePicker();
     _cameraIndex = Settings.instance.chosenCamera.value;
@@ -103,31 +107,48 @@ class _CameraViewState extends State<CameraView> {
       return Container();
     }
 
-    return Row(children: [
-      Expanded(
-        flex: 7,
-        child: Stack(
-          fit: StackFit.loose,
-          children: <Widget>[
-            Center(
-              child: _changingCameraLens
-                  ? const Center(
-                      child: Text('Changing camera lens'),
-                    )
-                  : CameraPreview(_controller!),
-            ),
-            if (widget.customPaint != null) widget.customPaint!,
-          ],
+    return Stack(children: [
+      Row(children: [
+        Expanded(
+          flex: 7,
+          child: Stack(
+            fit: StackFit.loose,
+            children: <Widget>[
+              Center(
+                child: _changingCameraLens
+                    ? const Center(
+                        child: Text('Changing camera lens'),
+                      )
+                    : CameraPreview(_controller!),
+              ),
+              if (widget.customPaint != null) widget.customPaint!,
+            ],
+          ),
+        ),
+        Expanded(
+          flex: 1,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: _menuItems(context),
+          ),
+        )
+      ]),
+      Align(
+        alignment: Alignment.bottomRight,
+        child: FractionallySizedBox(
+          widthFactor: 0.33,
+          heightFactor: 0.4,
+          child: Card(
+            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
+            clipBehavior: Clip.hardEdge,
+            child: googleMapUI(
+                control: false,
+                onTap: (lat) =>
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const GoogleMapPage()))),
+          ),
         ),
       ),
-      Expanded(
-        flex: 1,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: _menuItems(context),
-        ),
-      )
     ]);
   }
 
@@ -173,15 +194,8 @@ class _CameraViewState extends State<CameraView> {
               });
             },
           )),
-      Expanded(
-        flex: 2,
-        child: TextButton(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const GoogleMapPage())),
-          child: const Card(
-            child: Text("Really Big Map that flows over the camera screen"),
-          ),
-        ),
-      )
+      //placeholder
+      const Expanded(flex: 2, child: Card())
     ];
   }
 
@@ -209,8 +223,8 @@ class _CameraViewState extends State<CameraView> {
             scale: scale,
             child: Center(
               child: _changingCameraLens
-                  ? Center(
-                      child: const Text('Changing camera lens'),
+                  ? const Center(
+                      child: Text('Changing camera lens'),
                     )
                   : CameraPreview(_controller!),
             ),
