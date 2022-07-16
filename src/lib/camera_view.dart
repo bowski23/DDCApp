@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:isolate';
 
 import 'package:camera/camera.dart';
@@ -6,10 +5,8 @@ import 'package:ddcapp/google_map_page.dart';
 import 'package:ddcapp/graph_page.dart';
 import 'package:ddcapp/helpers/settings.dart';
 import 'package:ddcapp/settings_page.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:image/image.dart' as imageLib;
 
@@ -40,14 +37,9 @@ class CameraView extends StatefulWidget {
 }
 
 class _CameraViewState extends State<CameraView> {
-  ScreenMode _mode = ScreenMode.liveFeed;
   CameraController? _controller;
-  File? _image;
-  String? _path;
-  ImagePicker? _imagePicker;
   int _cameraIndex = 0;
   double zoomLevel = 0.0, minZoomLevel = 0.0, maxZoomLevel = 0.0;
-  bool _changingCameraLens = false;
   bool _recording = false;
   late IsolateUtils isolateUtils;
 
@@ -62,7 +54,6 @@ class _CameraViewState extends State<CameraView> {
       Provider.of<LocationProvider>(context, listen: false).initalization();
     });
 
-    _imagePicker = ImagePicker();
     _cameraIndex = Settings.instance.chosenCamera.value;
 
     Settings.instance.chosenCamera.notifier.addListener(() {
@@ -107,11 +98,7 @@ class _CameraViewState extends State<CameraView> {
             fit: StackFit.loose,
             children: <Widget>[
               Center(
-                child: _changingCameraLens
-                    ? const Center(
-                        child: Text('Changing camera lens'),
-                      )
-                    : CameraPreview(_controller!),
+                child: CameraPreview(_controller!),
               ),
               if (widget.customPaint != null) widget.customPaint!,
             ],
@@ -190,42 +177,6 @@ class _CameraViewState extends State<CameraView> {
       //placeholder
       const Expanded(flex: 2, child: Card())
     ];
-  }
-
-  Widget _portraitBody() {
-    if (_controller?.value.isInitialized == false) {
-      return Container();
-    }
-
-    final size = MediaQuery.of(context).size;
-    // calculate scale depending on screen and camera ratios
-    // this is actually size.aspectRatio / (1 / camera.aspectRatio)
-    // because camera preview size is received as landscape
-    // but we're calculating for portrait orientation
-    var scale = size.aspectRatio * _controller!.value.aspectRatio;
-
-    // to prevent scaling down, invert the value
-    if (scale < 1) scale = 1 / scale;
-
-    return Container(
-      color: Colors.black,
-      child: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          Transform.scale(
-            scale: scale,
-            child: Center(
-              child: _changingCameraLens
-                  ? const Center(
-                      child: Text('Changing camera lens'),
-                    )
-                  : CameraPreview(_controller!),
-            ),
-          ),
-          if (widget.customPaint != null) widget.customPaint!,
-        ],
-      ),
-    );
   }
 
   Future _startLiveFeed() async {
