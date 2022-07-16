@@ -2,6 +2,7 @@ import 'dart:io' as io;
 
 import 'package:camera/camera.dart';
 import 'package:ddcapp/helpers/settings.dart';
+import 'package:ddcapp/yolo/classifierYolov4.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
@@ -11,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'camera_view.dart';
 import 'painters/object_detector_painter.dart';
 import 'settings_page.dart';
+import 'package:image/image.dart' as imagelib;
 
 class ObjectDetectorView extends StatefulWidget {
   @override
@@ -18,7 +20,8 @@ class ObjectDetectorView extends StatefulWidget {
 }
 
 class _ObjectDetectorView extends State<ObjectDetectorView> {
-  late ObjectDetector _objectDetector;
+  // late ObjectDetector _objectDetector;
+  late Classifier _classifier;
   bool _canProcess = false;
   bool _isBusy = false;
   CustomPaint? _customPaint;
@@ -34,7 +37,8 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
   @override
   void dispose() {
     _canProcess = false;
-    _objectDetector.close();
+    // _objectDetector.close();
+    // TODO: check if we need to destroy Isolate
     super.dispose();
   }
 
@@ -62,11 +66,17 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
 
     // uncomment next lines if you want to use a local model
     // make sure to add tflite model to assets/ml
-    final path = 'assets/ml/object_labeler.tflite';
-    final modelPath = await _getModel(path);
-    final options = LocalObjectDetectorOptions(
-        modelPath: modelPath, classifyObjects: true, multipleObjects: true, mode: DetectionMode.stream);
-    _objectDetector = ObjectDetector(options: options);
+    // final path = 'assets/ml/object_labeler.tflite';
+    // final modelPath = await _getModel(path);
+    // final options = LocalObjectDetectorOptions(
+    //     modelPath: modelPath, classifyObjects: true, multipleObjects: true, mode: DetectionMode.stream);
+    // _objectDetector = ObjectDetector(options: options);
+
+
+    _classifier = Classifier();
+
+
+
 
     // uncomment next lines if you want to use a remote model
     // make sure to add model to firebase
@@ -84,7 +94,7 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
     _canProcess = true;
   }
 
-  Future<void> processImage(InputImage inputImage) async {
+  Future<void> processImage(imagelib.Image inputImage) async {
     if (!_canProcess) return;
     if (!Settings.instance.useMachineLearning.value) return;
     if (_isBusy) return;
@@ -92,20 +102,37 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
     setState(() {
       _text = '';
     });
-    final objects = await _objectDetector.processImage(inputImage);
-    if (inputImage.inputImageData?.size != null && inputImage.inputImageData?.imageRotation != null) {
-      final painter =
-          ObjectDetectorPainter(objects, inputImage.inputImageData!.imageRotation, inputImage.inputImageData!.size);
-      _customPaint = CustomPaint(painter: painter);
-    } else {
-      String text = 'Objects found: ${objects.length}\n\n';
-      for (final object in objects) {
-        text += 'Object:  trackingId: ${object.trackingId} - ${object.labels.map((e) => e.text)}\n\n';
-      }
-      _text = text;
-      // TODO: set _customPaint to draw boundingRect on top of image
-      _customPaint = null;
-    }
+
+
+
+    Map<String, dynamic> results = _classifier.predict(inputImage);
+    print('furkan');
+    print(results);
+
+
+
+
+
+
+
+    // final objects = await _objectDetector.processImage(inputImage);
+    // if (inputImage.inputImageData?.size != null && inputImage.inputImageData?.imageRotation != null) {
+    //   final painter =
+    //       ObjectDetectorPainter(objects, inputImage.inputImageData!.imageRotation, inputImage.inputImageData!.size);
+    //   _customPaint = CustomPaint(painter: painter);
+    // } else {
+    //   String text = 'Objects found: ${objects.length}\n\n';
+    //   for (final object in objects) {
+    //     text += 'Object:  trackingId: ${object.trackingId} - ${object.labels.map((e) => e.text)}\n\n';
+    //   }
+    //   _text = text;
+    //   // TODO: set _customPaint to draw boundingRect on top of image
+    //   _customPaint = null;
+    // }
+
+
+
+
     _isBusy = false;
     if (mounted) {
       setState(() {});

@@ -4,7 +4,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
-import 'package:image/image.dart' as imageLib;
+import 'package:image/image.dart' as imagelib;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
 typedef ConvertFunc = Pointer<Uint32> Function(
@@ -31,7 +31,7 @@ class IsolateUtils {
     return _conv!;
   }
 
-  void start() async {
+  Future<void> start() async {
     _isolate = await Isolate.spawn<SendPort>(
       entryPoint,
       _receivePort.sendPort,
@@ -46,7 +46,7 @@ class IsolateUtils {
     sendPort.send(port.sendPort);
 
     await for (final IsolateData isolateData in port) {
-      imageLib.Image image;
+      imagelib.Image image;
       if (Platform.isAndroid) {
         // Allocate memory for the 3 planes of the image
         Pointer<Uint8> p = ffi.calloc.allocate(isolateData.cameraImage.planes[0].bytes.length);
@@ -78,7 +78,7 @@ class IsolateUtils {
         Uint32List imgData =
             imgP.asTypedList((isolateData.cameraImage.planes[0].bytesPerRow * isolateData.cameraImage.height));
         // Generate image from the converted data
-        image = imageLib.Image.fromBytes(isolateData.cameraImage.height, isolateData.cameraImage.width, imgData);
+        image = imagelib.Image.fromBytes(isolateData.cameraImage.height, isolateData.cameraImage.width, imgData);
 
         // Free the memory space allocated
         // from the planes and the converted data
@@ -88,11 +88,11 @@ class IsolateUtils {
         ffi.calloc.free(imgP);
       } else {
         // iOS
-        image = imageLib.Image.fromBytes(
+        image = imagelib.Image.fromBytes(
           isolateData.cameraImage.planes[0].bytesPerRow,
           isolateData.cameraImage.height,
           isolateData.cameraImage.planes[0].bytes,
-          format: imageLib.Format.bgra,
+          format: imagelib.Format.bgra,
         );
       }
       //Map<String, dynamic> results = classifier.predict(image);

@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:image/image.dart' as imageLib;
+import 'package:image/image.dart' as imagelib;
 
 import 'helpers/isolate_utils.dart';
 import 'main.dart';
@@ -32,7 +32,7 @@ class CameraView extends StatefulWidget {
   final String title;
   final CustomPaint? customPaint;
   final String? text;
-  final Function(InputImage inputImage) onImage;
+  final Function(imagelib.Image inputImage) onImage;
   final CameraLensDirection initialDirection;
 
   @override
@@ -249,7 +249,7 @@ class _CameraViewState extends State<CameraView> {
     });
     final pickedFile = await _imagePicker?.pickImage(source: source);
     if (pickedFile != null) {
-      _processPickedFile(pickedFile);
+      // _processPickedFile(pickedFile);
     }
     setState(() {});
   }
@@ -292,42 +292,47 @@ class _CameraViewState extends State<CameraView> {
     setState(() => _changingCameraLens = false);
   }
 
-  Future _processPickedFile(XFile? pickedFile) async {
-    final path = pickedFile?.path;
-    if (path == null) {
+  // Future _processPickedFile(XFile? pickedFile) async {
+  //   final path = pickedFile?.path;
+  //   if (path == null) {
+  //     return;
+  //   }
+  //   setState(() {
+  //     _image = File(path);
+  //   });
+  //   _path = path;
+  //   final inputImage = InputImage.fromFilePath(path);
+  //   widget.onImage(inputImage);
+  // }
+
+  Future _processCameraImage(CameraImage inputImage) async {
+    if(isolateUtils.sendPort == null){
       return;
     }
-    setState(() {
-      _image = File(path);
-    });
-    _path = path;
-    final inputImage = InputImage.fromFilePath(path);
-    widget.onImage(inputImage);
-  }
 
-  Future _processCameraImage(CameraImage image) async {
-    var uiThreadTimeStart = DateTime.now().millisecondsSinceEpoch;
 
+      var uiThreadTimeStart = DateTime.now().millisecondsSinceEpoch;
     // Data to be passed to inference isolate
-    var isolateData = IsolateData(image);
+    var isolateData = IsolateData(inputImage);
 
     // We could have simply used the compute method as well however
     // it would be as in-efficient as we need to continuously passing data
     // to another isolate.
 
     /// perform inference in separate isolate
-    imageLib.Image inferenceResults = await inference(isolateData);
+
+    imagelib.Image preprocessedImage = await inference(isolateData);
 
     var uiThreadInferenceElapsedTime = DateTime.now().millisecondsSinceEpoch - uiThreadTimeStart;
 
-    //widget.onImage(inputImage);
+    widget.onImage(preprocessedImage);
   }
 
   /// Runs inference in another isolate
-  Future<imageLib.Image> inference(IsolateData isolateData) async {
+  Future<imagelib.Image> inference(IsolateData isolateData) async {
     ReceivePort responsePort = ReceivePort();
     isolateUtils.sendPort.send(isolateData..responsePort = responsePort.sendPort);
-    var results = await responsePort.first;
+    var results = await responsePort.first; //TODO: Fix, this returns null
     return results;
   }
 
