@@ -6,6 +6,7 @@ import 'package:ddcapp/google_map_page.dart';
 import 'package:ddcapp/graph_page.dart';
 import 'package:ddcapp/helpers/settings.dart';
 import 'package:ddcapp/settings_page.dart';
+import 'package:ddcapp/yolo/classifierYolov4.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
@@ -32,7 +33,7 @@ class CameraView extends StatefulWidget {
   final String title;
   final CustomPaint? customPaint;
   final String? text;
-  final Function(imagelib.Image inputImage) onImage;
+  final Function(Map<String, dynamic> objects) onImage;
   final CameraLensDirection initialDirection;
 
   @override
@@ -50,10 +51,15 @@ class _CameraViewState extends State<CameraView> {
   bool _changingCameraLens = false;
   bool _recording = false;
   late IsolateUtils isolateUtils;
+  late Classifier classifier;
+  bool predicting = false;
+
 
   @override
   void initState() {
     super.initState();
+
+    classifier = Classifier();
 
     isolateUtils = IsolateUtils();
     isolateUtils.start();
@@ -258,7 +264,7 @@ class _CameraViewState extends State<CameraView> {
     final camera = cameras[_cameraIndex];
     _controller = CameraController(
       camera,
-      ResolutionPreset.max,
+      ResolutionPreset.low,
       enableAudio: false,
     );
     _controller?.initialize().then((_) {
@@ -309,29 +315,46 @@ class _CameraViewState extends State<CameraView> {
     if(isolateUtils.sendPort == null){
       return;
     }
+    if (classifier.interpreter != null && classifier.labels != null) {
+      // If previous inference has not completed then return
+      if (predicting) {
+        return;
+      }
+      setState(() {
+        predicting = true;
+      });
 
+      var uiThreadTimeStart = DateTime
+          .now()
+          .millisecondsSinceEpoch;
+      // Data to be passed to inference isolate
+      var isolateData = IsolateData(inputImage, classifier.interpreter!.address, classifier.labels!);
 
-      var uiThreadTimeStart = DateTime.now().millisecondsSinceEpoch;
-    // Data to be passed to inference isolate
-    var isolateData = IsolateData(inputImage);
+      // We could have simply used the compute method as well however
+      // it would be as in-efficient as we need to continuously passing data
+      // to another isolate.
 
-    // We could have simply used the compute method as well however
-    // it would be as in-efficient as we need to continuously passing data
-    // to another isolate.
+      /// perform inference in separate isolate
 
-    /// perform inference in separate isolate
+      Map<String, dynamic> objects = await inference(isolateData);
+      print(objects);
 
-    imagelib.Image preprocessedImage = await inference(isolateData);
-
-    var uiThreadInferenceElapsedTime = DateTime.now().millisecondsSinceEpoch - uiThreadTimeStart;
-
-    widget.onImage(preprocessedImage);
+      var uiThreadInferenceElapsedTime = DateTime
+          .now()
+          .millisecondsSinceEpoch - uiThreadTimeStart;
+      setState(() {
+        predicting = false;
+      });
+      widget.onImage(objects);
+    }
   }
 
   /// Runs inference in another isolate
-  Future<imagelib.Image> inference(IsolateData isolateData) async {
+  Future<Map<String, dynamic>> inference(IsolateData isolateData) async {
     ReceivePort responsePort = ReceivePort();
     isolateUtils.sendPort.send(isolateData..responsePort = responsePort.sendPort);
+
+    // TODO: Code only gets until here
     var results = await responsePort.first; //TODO: Fix, this returns null
     return results;
   }

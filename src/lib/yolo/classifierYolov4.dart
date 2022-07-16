@@ -1,18 +1,18 @@
 import 'dart:math';
 import 'dart:ui';
 import 'package:collection/collection.dart';
+import 'package:ddcapp/yolo/recognition.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as imageLib;
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:tflite_flutter_helper/tflite_flutter_helper.dart';
 
 import 'stats.dart';
-import 'recognition.dart';
 
 /// Classifier
 class Classifier {
   /// Instance of Interpreter
-  late Interpreter _interpreter;
+  Interpreter? _interpreter;
 
   //Interpreter Options (Settings)
   final int numThreads = 4;
@@ -20,8 +20,7 @@ class Classifier {
   final bool isGPU = true;
 
   /// Labels file loaded as list
-  late List<String> _labels;
-
+  List<String>? _labels;
   static const String MODEL_FILE_NAME = "yolov4-rebite-fp16.tflite";
   static const String LABEL_FILE_NAME = "obj.txt";
 
@@ -35,27 +34,26 @@ class Classifier {
   static double mNmsThresh = 0.6;
 
   /// [ImageProcessor] used to pre-process the image
-  late ImageProcessor imageProcessor;
+  ImageProcessor? imageProcessor;
 
   /// Padding the image to transform into square
-  late int padSize;
+  int? padSize;
 
   /// Shapes of output tensors
-  late List<List<int>> _outputShapes;
+  List<List<int>>? _outputShapes;
 
   /// Types of output tensors
-  late List<TfLiteType> _outputTypes;
+  List<TfLiteType>? _outputTypes;
 
   /// Number of results to show
   static const int NUM_RESULTS = 10;
 
-  Classifier(//{
-      // required Interpreter interpreter,
-      // required List<String> labels,
-      //}
-      ) {
-    loadModel(interpreter: null);
-    loadLabels(labels: null);
+  Classifier({
+    Interpreter? interpreter,
+    List<String>? labels,
+  }) {
+    loadModel(interpreter: interpreter);
+    loadLabels(labels: labels);
   }
 
   /// Loads interpreter from asset
@@ -84,14 +82,17 @@ class Classifier {
             options: InterpreterOptions()..threads = numThreads, //myOptions,
           );
 
-      var outputTensors = _interpreter.getOutputTensors();
+      // WidgetsFlutterBinding.ensureInitialized();
+
+
+      var outputTensors = _interpreter!.getOutputTensors();
       //print("the length of the ouput Tensors is ${outputTensors.length}");
       _outputShapes = [];
       _outputTypes = [];
       outputTensors.forEach((tensor) {
         //print(tensor.toString());
-        _outputShapes.add(tensor.shape);
-        _outputTypes.add(tensor.type);
+        _outputShapes!.add(tensor.shape);
+        _outputTypes!.add(tensor.type);
       });
     } catch (e) {
       print("Error while creating interpreter: $e");
@@ -112,12 +113,14 @@ class Classifier {
   /// Only does something to the image if it doesn't meet the specified input sizes.
   TensorImage getProcessedImage(TensorImage inputImage) {
     padSize = max(inputImage.height, inputImage.width);
-    imageProcessor = ImageProcessorBuilder()
-        .add(ResizeWithCropOrPadOp(padSize, padSize))
-        .add(ResizeOp(INPUT_SIZE, INPUT_SIZE, ResizeMethod.BILINEAR))
-        .add(NormalizeOp(0, 255))
-        .build();
-    inputImage = imageProcessor.process(inputImage);
+    if (imageProcessor == null) {
+      imageProcessor = ImageProcessorBuilder()
+          .add(ResizeWithCropOrPadOp(padSize!, padSize!))
+          .add(ResizeOp(INPUT_SIZE, INPUT_SIZE, ResizeMethod.BILINEAR))
+          .add(NormalizeOp(0, 255))
+          .build();
+    }
+    inputImage = imageProcessor!.process(inputImage);
     return inputImage;
   }
 
@@ -127,11 +130,15 @@ class Classifier {
   {
     List<Recognition> nmsList = [];
 
-    for (int k = 0; k < _labels.length; k++) {
+    if(_labels == null){
+      return [];
+    }
+
+    for (int k = 0; k < _labels!.length; k++) {
       // 1.find max confidence per class
       PriorityQueue<Recognition> pq = new HeapPriorityQueue<Recognition>();
       for (int i = 0; i < list.length; ++i) {
-        if (list[i].label == _labels[k]) {
+        if (list[i].label == _labels![k]) {
           // Changed from comparing #th class to class to string to string
           pq.add(list[i]);
         }
@@ -176,7 +183,7 @@ class Classifier {
   double boxUnion(Rect a, Rect b) {
     double i = boxIntersection(a, b);
     double u = ((((a.right - a.left) * (a.bottom - a.top)) +
-            ((b.right - b.left) * (b.bottom - b.top))) -
+        ((b.right - b.left) * (b.bottom - b.top))) -
         i);
     return u;
   }
@@ -195,9 +202,26 @@ class Classifier {
   Map<String, dynamic> predict(imageLib.Image image) {
     var predictStartTime = DateTime.now().millisecondsSinceEpoch;
 
-    // if (_interpreter == null) {
-    //   return null;
-    // }
+    if (_interpreter == null || _outputShapes == null || _labels == null) {
+      print('something was null');
+      if(_interpreter == null) {
+        print('_interpreter == null');
+      }
+      if(_outputShapes == null) {
+        print('_outputShapes == null');
+      }
+      if(_labels == null) {
+        print('_labels == null');
+      }
+      return {
+        "recognitions": [],
+        "stats": Stats(
+            totalPredictTime: 0,
+            inferenceTime: 0,
+            preProcessingTime: 0,
+            totalElapsedTime: 0)
+      };
+    }
     var preProcessStart = DateTime.now().millisecondsSinceEpoch;
 
     // Initliazing TensorImage as the needed model input type
@@ -220,12 +244,12 @@ class Classifier {
 
     // TensorBuffers for output tensors
     TensorBuffer outputLocations = TensorBufferFloat(
-        _outputShapes[0]); // The location of each detected object
+        _outputShapes![0]); // The location of each detected object
 
     List<List<List<double>>> outputClassScores = new List.generate(
-        _outputShapes[1][0],
-        (_) => new List.generate(_outputShapes[1][1],
-            (_) => new List.filled(_outputShapes[1][2], 0.0),
+        _outputShapes![1][0],
+            (_) => new List.generate(_outputShapes![1][1],
+                (_) => new List.filled(_outputShapes![1][2], 0.0),
             growable: false),
         growable: false);
 
@@ -243,7 +267,7 @@ class Classifier {
     print(inputs[0].runtimeType);
     print(inputs[0].toString());
     // run inference
-    _interpreter.runForMultipleInputs(inputs, outputs);
+    _interpreter!.runForMultipleInputs(inputs, outputs);
 
     var inferenceTimeElapsed =
         DateTime.now().millisecondsSinceEpoch - inferenceTimeStart;
@@ -263,7 +287,7 @@ class Classifier {
 
     List<Recognition> recognitions = [];
 
-    var gridWidth = _outputShapes[0][1];
+    var gridWidth = _outputShapes![0][1];
     //print("gridWidth = $gridWidth");
 
     for (int i = 0; i < gridWidth; i++) {
@@ -274,7 +298,7 @@ class Classifier {
       var maxClassScore = 0.00;
       var labelIndex = -1;
 
-      for (int c = 0; c < _labels.length; c++) {
+      for (int c = 0; c < _labels!.length; c++) {
         // output[0][i][c] is the confidence score of c class
         if (outputClassScores[0][i][c] > maxClassScore) {
           labelIndex = c;
@@ -287,7 +311,7 @@ class Classifier {
       var label;
       if (labelIndex != -1) {
         // Label string
-        label = _labels.elementAt(labelIndex);
+        label = _labels!.elementAt(labelIndex);
       } else {
         label = null;
       }
@@ -305,7 +329,7 @@ class Classifier {
             min(INPUT_SIZE + 0.0, locations[i].bottom));
 
         // Gets the coordinates based on the original image if anything was done to it.
-        Rect transformedRect = imageProcessor.inverseTransformRect(
+        Rect transformedRect = imageProcessor!.inverseTransformRect(
             rectAti, image.height, image.width);
 
         recognitions.add(
@@ -332,8 +356,8 @@ class Classifier {
   }
 
   /// Gets the interpreter instance
-  Interpreter get interpreter => _interpreter;
+  Interpreter? get interpreter => _interpreter;
 
   /// Gets the loaded labels
-  List<String> get labels => _labels;
+  List<String>? get labels => _labels;
 }

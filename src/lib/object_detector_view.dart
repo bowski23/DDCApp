@@ -51,8 +51,8 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
       title: 'DashCam Home',
       customPaint: _customPaint,
       text: _text,
-      onImage: (inputImage) {
-        processImage(inputImage);
+      onImage: (objects) {
+        processImage(objects);
       },
       initialDirection: CameraLensDirection.back,
     );
@@ -94,9 +94,9 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
     _canProcess = true;
   }
 
-  Future<void> processImage(imagelib.Image inputImage) async {
+  Future<void> processImage(Map<String, dynamic>  objects) async {
     if (!_canProcess) return;
-    if (!Settings.instance.useMachineLearning.value) return;
+    // if (!Settings.instance.useMachineLearning.value) return;
     if (_isBusy) return;
     _isBusy = true;
     setState(() {
@@ -105,9 +105,9 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
 
 
 
-    Map<String, dynamic> results = _classifier.predict(inputImage);
+    // Map<String, dynamic> results = _classifier.predict(inputImage);
     print('furkan');
-    print(results);
+    print(objects);
 
 
 
