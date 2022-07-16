@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:camera/camera.dart';
 import 'package:ddcapp/google_map_page.dart';
@@ -10,7 +11,9 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:image/image.dart' as imageLib;
 
+import 'helpers/isolate_utils.dart';
 import 'main.dart';
 import 'provider/location_provider.dart';
 
@@ -46,10 +49,14 @@ class _CameraViewState extends State<CameraView> {
   double zoomLevel = 0.0, minZoomLevel = 0.0, maxZoomLevel = 0.0;
   bool _changingCameraLens = false;
   bool _recording = false;
+  late IsolateUtils isolateUtils;
 
   @override
   void initState() {
     super.initState();
+
+    isolateUtils = IsolateUtils();
+    isolateUtils.start();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<LocationProvider>(context, listen: false).initalization();
@@ -251,7 +258,7 @@ class _CameraViewState extends State<CameraView> {
     final camera = cameras[_cameraIndex];
     _controller = CameraController(
       camera,
-      ResolutionPreset.high,
+      ResolutionPreset.max,
       enableAudio: false,
     );
     _controller?.initialize().then((_) {
@@ -299,39 +306,41 @@ class _CameraViewState extends State<CameraView> {
   }
 
   Future _processCameraImage(CameraImage image) async {
-    final WriteBuffer allBytes = WriteBuffer();
-    for (final Plane plane in image.planes) {
-      allBytes.putUint8List(plane.bytes);
+    var uiThreadTimeStart = DateTime.now().millisecondsSinceEpoch;
+
+    // Data to be passed to inference isolate
+    var isolateData = IsolateData(image);
+
+    // We could have simply used the compute method as well however
+    // it would be as in-efficient as we need to continuously passing data
+    // to another isolate.
+
+    /// perform inference in separate isolate
+    imageLib.Image inferenceResults = await inference(isolateData);
+
+    var uiThreadInferenceElapsedTime = DateTime.now().millisecondsSinceEpoch - uiThreadTimeStart;
+
+    //widget.onImage(inputImage);
+  }
+
+  /// Runs inference in another isolate
+  Future<imageLib.Image> inference(IsolateData isolateData) async {
+    ReceivePort responsePort = ReceivePort();
+    isolateUtils.sendPort.send(isolateData..responsePort = responsePort.sendPort);
+    var results = await responsePort.first;
+    return results;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
+    switch (state) {
+      case AppLifecycleState.paused:
+        _controller!.stopImageStream();
+        break;
+      case AppLifecycleState.resumed:
+        await _controller!.startImageStream(_processCameraImage);
+        break;
+      default:
     }
-    final bytes = allBytes.done().buffer.asUint8List();
-
-    final Size imageSize = Size(image.width.toDouble(), image.height.toDouble());
-
-    final camera = cameras[_cameraIndex];
-    final imageRotation =
-        InputImageRotationValue.fromRawValue(camera.sensorOrientation) ?? InputImageRotation.rotation0deg;
-
-    final inputImageFormat = InputImageFormatValue.fromRawValue(image.format.raw) ?? InputImageFormat.nv21;
-
-    final planeData = image.planes.map(
-      (Plane plane) {
-        return InputImagePlaneMetadata(
-          bytesPerRow: plane.bytesPerRow,
-          height: plane.height,
-          width: plane.width,
-        );
-      },
-    ).toList();
-
-    final inputImageData = InputImageData(
-      size: imageSize,
-      imageRotation: imageRotation,
-      inputImageFormat: inputImageFormat,
-      planeData: planeData,
-    );
-
-    final inputImage = InputImage.fromBytes(bytes: bytes, inputImageData: inputImageData);
-
-    widget.onImage(inputImage);
   }
 }
