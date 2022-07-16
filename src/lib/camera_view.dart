@@ -86,36 +86,21 @@ class _CameraViewState extends State<CameraView> {
       backgroundColor: Colors.black,
       body: OrientationBuilder(builder: (context, orientation) {
         if (orientation == Orientation.portrait) {
-          return _portraitBody();
+          return _body(context, isHorizontal: false);
         } else {
-          return _landscapeBody(context);
+          return _body(context, isHorizontal: true);
         }
       }),
     );
   }
 
-  Widget? _floatingActionButton() {
-    if (_mode == ScreenMode.gallery) return null;
-    if (cameras.length == 1) return null;
-    return SizedBox(
-        height: 70.0,
-        width: 70.0,
-        child: FloatingActionButton(
-          onPressed: _switchLiveCamera,
-          child: Icon(
-            Platform.isIOS ? Icons.flip_camera_ios_outlined : Icons.flip_camera_android_outlined,
-            size: 40,
-          ),
-        ));
-  }
-
-  Widget _landscapeBody(BuildContext context) {
+  Widget _body(BuildContext context, {bool isHorizontal = true}) {
     if (_controller?.value.isInitialized == false) {
       return Container();
     }
 
     return Stack(children: [
-      Row(children: [
+      Flex(direction: isHorizontal ? Axis.horizontal : Axis.vertical, children: [
         Expanded(
           flex: 7,
           child: Stack(
@@ -134,18 +119,19 @@ class _CameraViewState extends State<CameraView> {
         ),
         Expanded(
           flex: 1,
-          child: Column(
+          child: Flex(
+            direction: !isHorizontal ? Axis.horizontal : Axis.vertical,
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
-            children: _menuItems(context),
+            children: isHorizontal ? _menuItems(context) : _menuItems(context).reversed.toList(),
           ),
         )
       ]),
       Align(
-        alignment: Alignment.bottomRight,
+        alignment: isHorizontal ? Alignment.bottomRight : Alignment.bottomLeft,
         child: FractionallySizedBox(
-          widthFactor: 0.33,
-          heightFactor: 0.4,
+          widthFactor: isHorizontal ? 0.33 : 0.4,
+          heightFactor: isHorizontal ? 0.4 : 0.33,
           child: Card(
             shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
             clipBehavior: Clip.hardEdge,
@@ -242,18 +228,6 @@ class _CameraViewState extends State<CameraView> {
     );
   }
 
-  Future _getImage(ImageSource source) async {
-    setState(() {
-      _image = null;
-      _path = null;
-    });
-    final pickedFile = await _imagePicker?.pickImage(source: source);
-    if (pickedFile != null) {
-      _processPickedFile(pickedFile);
-    }
-    setState(() {});
-  }
-
   Future _startLiveFeed() async {
     final camera = cameras[_cameraIndex];
     _controller = CameraController(
@@ -283,28 +257,6 @@ class _CameraViewState extends State<CameraView> {
     _controller = null;
   }
 
-  Future _switchLiveCamera() async {
-    setState(() => _changingCameraLens = true);
-    _cameraIndex = (_cameraIndex + 1) % cameras.length;
-
-    await _stopLiveFeed();
-    await _startLiveFeed();
-    setState(() => _changingCameraLens = false);
-  }
-
-  Future _processPickedFile(XFile? pickedFile) async {
-    final path = pickedFile?.path;
-    if (path == null) {
-      return;
-    }
-    setState(() {
-      _image = File(path);
-    });
-    _path = path;
-    final inputImage = InputImage.fromFilePath(path);
-    widget.onImage(inputImage);
-  }
-
   Future _processCameraImage(CameraImage image) async {
     var uiThreadTimeStart = DateTime.now().millisecondsSinceEpoch;
 
@@ -329,18 +281,5 @@ class _CameraViewState extends State<CameraView> {
     isolateUtils.sendPort.send(isolateData..responsePort = responsePort.sendPort);
     var results = await responsePort.first;
     return results;
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) async {
-    switch (state) {
-      case AppLifecycleState.paused:
-        _controller!.stopImageStream();
-        break;
-      case AppLifecycleState.resumed:
-        await _controller!.startImageStream(_processCameraImage);
-        break;
-      default:
-    }
   }
 }
