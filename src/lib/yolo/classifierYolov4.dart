@@ -277,7 +277,7 @@ class Classifier {
     // Using bounding box utils for easy conversion of tensorbuffer to List<Rect>
     List<Rect> locations = BoundingBoxUtils.convert(
       tensor: outputLocations,
-      valueIndex: [1, 0, 3, 2], //Commented out because default order is needed.
+      // valueIndex: [1, 0, 3, 2], //Commented out because default order is needed.
       boundingBoxAxis: 2,
       boundingBoxType: BoundingBoxType.CENTER,
       coordinateType: CoordinateType.PIXEL,

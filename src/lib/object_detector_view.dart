@@ -51,7 +51,7 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
       // camera preview. Use a FutureBuilder to display a loading spinner until the
       // controller has finished initializing.
       title: 'DashCam Home',
-      customPaint: _customPaint,
+      // customPaint: _customPaint,
       text: _text,
       onImage: (objects, imageRotation, height, width) {
         processImage(objects, imageRotation, height, width);
@@ -98,59 +98,12 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
 
   Future<void> processImage(Map<String, dynamic> objects, int imageRotation, int height, int width) async {
     if (!_canProcess) return;
-    // if (!Settings.instance.useMachineLearning.value) return;
+    if (!Settings.instance.useMachineLearning.value) return;
     if (_isBusy) return;
     _isBusy = true;
     setState(() {
       _text = '';
     });
-
-
-
-    // Map<String, dynamic> results = _classifier.predict(inputImage);
-    print('furkan');
-    print(objects);
-
-
-
-    Recognition rec = objects['recognitions'][0];
-    // rec.location
-
-
-
-    var testObjects = [
-      DetectedObject(
-          boundingBox: Rect.fromLTRB(0, 0, 100, 100),
-          labels: [Label(confidence: 99, index: 0, text: "hello")],
-          trackingId: 0)
-    ];
-
-    final painter = ObjectDetectorPainter(
-        testObjects,
-        // inputImage.inputImageData!.imageRotation,
-        InputImageRotation.rotation0deg,
-        ui.Size(1000.0, 1000.0),
-    );
-    _customPaint = CustomPaint(painter: painter);
-
-
-    // final objects = await _objectDetector.processImage(inputImage);
-    // if (inputImage.inputImageData?.size != null && inputImage.inputImageData?.imageRotation != null) {
-    //   final painter =
-    //       ObjectDetectorPainter(objects, inputImage.inputImageData!.imageRotation, inputImage.inputImageData!.size);
-    //   _customPaint = CustomPaint(painter: painter);
-    // } else {
-    //   String text = 'Objects found: ${objects.length}\n\n';
-    //   for (final object in objects) {
-    //     text += 'Object:  trackingId: ${object.trackingId} - ${object.labels.map((e) => e.text)}\n\n';
-    //   }
-    //   _text = text;
-    //   // TODO: set _customPaint to draw boundingRect on top of image
-    //   _customPaint = null;
-    // }
-
-
-
 
     _isBusy = false;
     if (mounted) {

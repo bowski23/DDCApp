@@ -34,23 +34,36 @@ class ObjectDetectorPainter extends CustomPainter {
 
       builder.pop();
 
-      final left = translateX(detectedObject.boundingBox.left, rotation, size, absoluteSize);
-      final top = translateY(detectedObject.boundingBox.top, rotation, size, absoluteSize);
-      final right = translateX(detectedObject.boundingBox.right, rotation, size, absoluteSize);
-      final bottom = translateY(detectedObject.boundingBox.bottom, rotation, size, absoluteSize);
+
+
+      // final left = translateX(detectedObject.boundingBox.left, InputImageRotation.rotation90deg, size,  absoluteSize);
+      // final top = translateY(detectedObject.boundingBox.top, InputImageRotation.rotation90deg, size, absoluteSize);
+      // final right = translateX(detectedObject.boundingBox.right, InputImageRotation.rotation90deg, size, absoluteSize);
+      // final bottom = translateY(detectedObject.boundingBox.bottom, InputImageRotation.rotation90deg, size, absoluteSize);
+
+
+
+      final left = detectedObject.boundingBox.left * (size.width/absoluteSize.width);
+      final top = detectedObject.boundingBox.top * (size.height/absoluteSize.height);
+      final right = detectedObject.boundingBox.right * (size.width/absoluteSize.width);
+      final bottom = detectedObject.boundingBox.bottom * (size.height/absoluteSize.height);
+
 
       canvas.drawRect(
         Rect.fromLTRB(left, top, right, bottom),
         paint,
       );
 
-      canvas.drawParagraph(
-        builder.build()
-          ..layout(ParagraphConstraints(
-            width: right - left,
-          )),
-        Offset(left, top),
-      );
+      print('hello');
+      print(size);
+
+      // canvas.drawParagraph(
+      //   builder.build()
+      //     ..layout(ParagraphConstraints(
+      //       width: right - left,
+      //     )),
+      //   Offset(left, top),
+      // );
     }
   }
 
