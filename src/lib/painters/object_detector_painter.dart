@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
 
 import '../../helpers/coordinates_translator.dart';
+import '../yolo/stats.dart';
 
 class ObjectDetectorPainter extends CustomPainter {
-  ObjectDetectorPainter(this._objects, this.absoluteSize);
+  ObjectDetectorPainter(this._objects, this.absoluteSize, this.stats);
 
   final List<DetectedObject> _objects;
   final Size absoluteSize;
+  final Stats stats;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -45,7 +47,23 @@ class ObjectDetectorPainter extends CustomPainter {
         paint,
       );
 
-      print(size);
+      // draw information text
+      final ParagraphBuilder builderT = ParagraphBuilder(
+        ParagraphStyle(
+          // textAlign: TextAlign.left,
+            fontSize: 10,
+            textDirection: TextDirection.ltr),
+      );
+      builderT.addText("totalPredTime: \n ${stats.totalPredictTime} ms\n\n"
+          "inferenceTime: \n ${stats.inferenceTime} ms\n\n"
+          "preProcTime: \n ${stats.preProcessingTime} ms");
+      builderT.pushStyle(
+          ui.TextStyle(color: Colors.lightGreenAccent, background: background));
+
+      canvas.drawParagraph(
+          builderT.build()
+            ..layout(const ParagraphConstraints(width: double.infinity)),
+          const Offset(0, 0));
 
       // canvas.drawParagraph(
       //   builder.build()

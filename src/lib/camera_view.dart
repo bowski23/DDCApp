@@ -240,14 +240,14 @@ class _CameraViewState extends State<CameraView> {
       var isolateData = IsolateData(inputImage, classifier.interpreter!.address, classifier.labels!, cameras[_cameraIndex].sensorOrientation);
 
       // perform inference in separate isolate
-      Map<String, dynamic> rawObjects = await inference(isolateData);
+      Map<String, dynamic> rawResults = await inference(isolateData);
 
       // The received objects locations have a weird shape: not LTRB but TLBR,
       // also the horizontal axis is reversed
       List<DetectedObject> processedObjects = [];
 
-      if (rawObjects['recognitions'] != null) {
-        List<Recognition> recognitions = rawObjects['recognitions'];
+      if (rawResults['recognitions'] != null) {
+        List<Recognition> recognitions = rawResults['recognitions'];
         for (Recognition recognition in recognitions) {
           Rect loc = recognition.location;
           processedObjects.add(DetectedObject(
@@ -255,13 +255,14 @@ class _CameraViewState extends State<CameraView> {
               boundingBox: Rect.fromLTRB((loc.top - inputImage.width).abs(),
                   loc.left, (loc.bottom - inputImage.width).abs(), loc.right),
               labels: [Label(confidence: 99, index: 2, text: "something")],
-              // TODO: Remove unecassy stuff
+              // TODO: Remove unnecessary stuff
               trackingId: 0));
         }
 
         final painter = ObjectDetectorPainter(
           processedObjects,
           ui.Size(inputImage.width * 1.0, inputImage.height * 1.0),
+          rawResults['stats']
         );
 
         customPaint = CustomPaint(painter: painter);
