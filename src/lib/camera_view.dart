@@ -34,7 +34,7 @@ class CameraView extends StatefulWidget {
   final CameraLensDirection initialDirection;
 
   @override
-  _CameraViewState createState() => _CameraViewState();
+  State<CameraView> createState() => _CameraViewState();
 }
 
 class _CameraViewState extends State<CameraView> {
@@ -209,7 +209,7 @@ class _CameraViewState extends State<CameraView> {
   }
 
   void startRecording() {
-    DateTime.now();
+    _timestamp = DateTime.now();
     if (!Settings.instance.useMachineLearning.value) {
       _controller!.startVideoRecording();
     }
@@ -234,6 +234,7 @@ class _CameraViewState extends State<CameraView> {
       _controller?.getMaxZoomLevel().then((value) {
         maxZoomLevel = value;
       });
+      _controller!.prepareForVideoRecording();
       if (Settings.instance.useMachineLearning.value) {
         _controller?.startImageStream(_processCameraImage);
         isStreaming = true;

@@ -21,7 +21,7 @@ class _GraphPageState extends State<GraphPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: Text("Graphs")),
+        appBar: AppBar(title: const Text("Graphs")),
         body: Row(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.start, children: [
           Expanded(
             flex: 1,
@@ -34,6 +34,14 @@ class _GraphPageState extends State<GraphPage> {
             ),
           )
         ]));
+  }
+
+  @override
+  void dispose() {
+    for (var element in _streamSubscriptions) {
+      element.cancel();
+    }
+    super.dispose();
   }
 
   List<Widget> _charts() {
@@ -79,7 +87,7 @@ class _GraphPageState extends State<GraphPage> {
 class ThreeDimDataLineChart extends StatefulWidget {
   final Stream eventStream;
 
-  const ThreeDimDataLineChart({Key? key, required Stream this.eventStream}) : super(key: key);
+  const ThreeDimDataLineChart({Key? key, required this.eventStream}) : super(key: key);
 
   @override
   State<ThreeDimDataLineChart> createState() => _ThreeDimDataLineChartState(eventStream);
@@ -115,20 +123,19 @@ class _ThreeDimDataLineChartState extends State<ThreeDimDataLineChart> {
     );
 
     //update every 16ms so that we get 60 fps
-    periodicUpdater = Timer.periodic(Duration(milliseconds: 16), (timer) => setState(() {}));
+    periodicUpdater = Timer.periodic(const Duration(milliseconds: 16), (timer) => setState(() {}));
   }
 
   updateData(event) {
     if (data.length > dataPointLimit) data.removeAt(0);
 
-    var threeDimEvent = event as AccelerometerEvent;
     data.add(_EventWrapper(event, DateTime.now()));
   }
 
   @override
   Widget build(BuildContext context) {
     if (displayedX == null || displayedY == null || displayedZ == null) {
-      return Text("loading");
+      return const Text("loading");
     }
     return TimeSeriesChart(
       [displayedX!, displayedY!, displayedZ!],

@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:camera/camera.dart';
 import 'package:ddcapp/object_detector_view.dart';
 import 'package:ddcapp/provider/location_provider.dart';
