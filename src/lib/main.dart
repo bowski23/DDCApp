@@ -1,6 +1,9 @@
+import 'dart:ui';
+
 import 'package:camera/camera.dart';
 import 'package:ddcapp/object_detector_view.dart';
 import 'package:ddcapp/provider/location_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -15,18 +18,20 @@ Future<void> main() async {
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
   cameras = await availableCameras();
-  print(cameras);
+  if (kDebugMode) {
+    print(cameras);
+  }
 
   runApp(MultiProvider(
       providers: [
         ChangeNotifierProvider(
           create: (context) => LocationProvider(),
           child: const GoogleMapPage(),
-        )
+        ),
       ],
       child: MaterialApp(
         home: ObjectDetectorView(),
-        theme: ThemeData(iconTheme: IconThemeData(color: Colors.grey)),
+        theme: ThemeData(iconTheme: const IconThemeData(color: Colors.grey)),
         themeMode: ThemeMode.dark,
       )));
 }

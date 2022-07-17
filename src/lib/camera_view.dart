@@ -5,6 +5,7 @@ import 'package:ddcapp/google_map_page.dart';
 import 'package:ddcapp/graph_page.dart';
 import 'package:ddcapp/helpers/settings.dart';
 import 'package:ddcapp/settings_page.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:provider/provider.dart';
@@ -41,7 +42,9 @@ class _CameraViewState extends State<CameraView> {
   int _cameraIndex = 0;
   double zoomLevel = 0.0, minZoomLevel = 0.0, maxZoomLevel = 0.0;
   bool _recording = false;
+  DateTime _timestamp = DateTime(0);
   late IsolateUtils isolateUtils;
+  late bool isStreaming = false;
 
   @override
   void initState() {
@@ -56,9 +59,14 @@ class _CameraViewState extends State<CameraView> {
 
     _cameraIndex = Settings.instance.chosenCamera.value;
 
-    Settings.instance.chosenCamera.notifier.addListener(() {
+    Settings.instance.chosenCamera.notifier.addListener(() async {
       _cameraIndex = Settings.instance.chosenCamera.value;
-      _stopLiveFeed();
+      await _stopLiveFeed();
+      _startLiveFeed();
+    });
+
+    Settings.instance.useMachineLearning.notifier.addListener(() async {
+      await _stopLiveFeed();
       _startLiveFeed();
     });
 
@@ -86,7 +94,7 @@ class _CameraViewState extends State<CameraView> {
   }
 
   Widget _body(BuildContext context, {bool isHorizontal = true}) {
-    if (_controller?.value.isInitialized == false) {
+    if (_controller == null || _controller!.value.isInitialized == false) {
       return Container();
     }
 
@@ -170,7 +178,7 @@ class _CameraViewState extends State<CameraView> {
             color: Colors.white,
             onPressed: () {
               setState(() {
-                _recording = !_recording;
+                toggleRecording();
               });
             },
           )),
@@ -179,11 +187,40 @@ class _CameraViewState extends State<CameraView> {
     ];
   }
 
+  void toggleRecording() {
+    if (_controller == null) return;
+    if (_recording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  }
+
+  void stopRecording() {
+    if (!Settings.instance.useMachineLearning.value) {
+      _controller!.stopVideoRecording().then((value) {
+        if (kDebugMode) {
+          print(value.name);
+          print(value.path);
+        }
+      });
+    }
+    _recording = false;
+  }
+
+  void startRecording() {
+    DateTime.now();
+    if (!Settings.instance.useMachineLearning.value) {
+      _controller!.startVideoRecording();
+    }
+    _recording = true;
+  }
+
   Future _startLiveFeed() async {
     final camera = cameras[_cameraIndex];
     _controller = CameraController(
       camera,
-      ResolutionPreset.max,
+      Settings.instance.useMachineLearning.value ? ResolutionPreset.medium : ResolutionPreset.max,
       enableAudio: false,
     );
     _controller?.initialize().then((_) {
@@ -197,18 +234,29 @@ class _CameraViewState extends State<CameraView> {
       _controller?.getMaxZoomLevel().then((value) {
         maxZoomLevel = value;
       });
-      _controller?.startImageStream(_processCameraImage);
+      if (Settings.instance.useMachineLearning.value) {
+        _controller?.startImageStream(_processCameraImage);
+        isStreaming = true;
+      }
       setState(() {});
     });
   }
 
   Future _stopLiveFeed() async {
-    await _controller?.stopImageStream();
+    if (_controller == null) return;
+    if (isStreaming) {
+      await _controller?.stopImageStream();
+      isStreaming = false;
+    }
+    if (_recording) {
+      await _controller?.stopVideoRecording();
+    }
     await _controller?.dispose();
     _controller = null;
   }
 
   Future _processCameraImage(CameraImage image) async {
+    if (_controller == null) return;
     var uiThreadTimeStart = DateTime.now().millisecondsSinceEpoch;
 
     // Data to be passed to inference isolate
