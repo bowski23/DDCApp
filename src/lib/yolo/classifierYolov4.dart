@@ -111,10 +111,12 @@ class Classifier {
 
   /// Pre-process the image
   /// Only does something to the image if it doesn't meet the specified input sizes.
-  TensorImage getProcessedImage(TensorImage inputImage) {
+  TensorImage getProcessedImage(TensorImage inputImage, int imageRotation) {
+    print(imageRotation);
     padSize = max(inputImage.height, inputImage.width);
     if (imageProcessor == null) {
       imageProcessor = ImageProcessorBuilder()
+          .add(Rot90Op(3))
           .add(ResizeWithCropOrPadOp(padSize!, padSize!))
           .add(ResizeOp(INPUT_SIZE, INPUT_SIZE, ResizeMethod.BILINEAR))
           .add(NormalizeOp(0, 255))
@@ -199,7 +201,7 @@ class Classifier {
   }
 
   /// Runs object detection on the input image
-  Map<String, dynamic> predict(imageLib.Image image) {
+  Map<String, dynamic> predict(imageLib.Image image, int imageRotation) {
     var predictStartTime = DateTime.now().millisecondsSinceEpoch;
 
     if (_interpreter == null || _outputShapes == null || _labels == null) {
@@ -236,7 +238,7 @@ class Classifier {
     //TensorImage inputImage = TensorImage.fromImage(image);
 
     // Pre-process TensorImage
-    inputImage = getProcessedImage(inputImage);
+    inputImage = getProcessedImage(inputImage, imageRotation);
     //getProcessedImage(inputImage);
 
     var preProcessElapsedTime =
@@ -275,7 +277,7 @@ class Classifier {
     // Using bounding box utils for easy conversion of tensorbuffer to List<Rect>
     List<Rect> locations = BoundingBoxUtils.convert(
       tensor: outputLocations,
-      //valueIndex: [1, 0, 3, 2], Commented out because default order is needed.
+      valueIndex: [1, 0, 3, 2], //Commented out because default order is needed.
       boundingBoxAxis: 2,
       boundingBoxType: BoundingBoxType.CENTER,
       coordinateType: CoordinateType.PIXEL,

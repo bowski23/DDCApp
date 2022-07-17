@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:isolate';
 
 import 'package:camera/camera.dart';
@@ -10,7 +9,6 @@ import 'package:ddcapp/yolo/classifierYolov4.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:image/image.dart' as imagelib;
 
@@ -33,7 +31,7 @@ class CameraView extends StatefulWidget {
   final String title;
   final CustomPaint? customPaint;
   final String? text;
-  final Function(Map<String, dynamic> objects) onImage;
+  final Function(Map<String, dynamic> objects, int imageRotation, int height, int width) onImage;
   final CameraLensDirection initialDirection;
 
   @override
@@ -41,14 +39,9 @@ class CameraView extends StatefulWidget {
 }
 
 class _CameraViewState extends State<CameraView> {
-  ScreenMode _mode = ScreenMode.liveFeed;
   CameraController? _controller;
-  File? _image;
-  String? _path;
-  ImagePicker? _imagePicker;
   int _cameraIndex = 0;
   double zoomLevel = 0.0, minZoomLevel = 0.0, maxZoomLevel = 0.0;
-  bool _changingCameraLens = false;
   bool _recording = false;
   late IsolateUtils isolateUtils;
   late Classifier classifier;
@@ -68,7 +61,6 @@ class _CameraViewState extends State<CameraView> {
       Provider.of<LocationProvider>(context, listen: false).initalization();
     });
 
-    _imagePicker = ImagePicker();
     _cameraIndex = Settings.instance.chosenCamera.value;
 
     Settings.instance.chosenCamera.notifier.addListener(() {
@@ -92,47 +84,28 @@ class _CameraViewState extends State<CameraView> {
       backgroundColor: Colors.black,
       body: OrientationBuilder(builder: (context, orientation) {
         if (orientation == Orientation.portrait) {
-          return _portraitBody();
+          return _body(context, isHorizontal: false);
         } else {
-          return _landscapeBody(context);
+          return _body(context, isHorizontal: true);
         }
       }),
     );
   }
 
-  Widget? _floatingActionButton() {
-    if (_mode == ScreenMode.gallery) return null;
-    if (cameras.length == 1) return null;
-    return SizedBox(
-        height: 70.0,
-        width: 70.0,
-        child: FloatingActionButton(
-          onPressed: _switchLiveCamera,
-          child: Icon(
-            Platform.isIOS ? Icons.flip_camera_ios_outlined : Icons.flip_camera_android_outlined,
-            size: 40,
-          ),
-        ));
-  }
-
-  Widget _landscapeBody(BuildContext context) {
+  Widget _body(BuildContext context, {bool isHorizontal = true}) {
     if (_controller?.value.isInitialized == false) {
       return Container();
     }
 
     return Stack(children: [
-      Row(children: [
+      Flex(direction: isHorizontal ? Axis.horizontal : Axis.vertical, children: [
         Expanded(
           flex: 7,
           child: Stack(
             fit: StackFit.loose,
             children: <Widget>[
               Center(
-                child: _changingCameraLens
-                    ? const Center(
-                        child: Text('Changing camera lens'),
-                      )
-                    : CameraPreview(_controller!),
+                child: CameraPreview(_controller!),
               ),
               if (widget.customPaint != null) widget.customPaint!,
             ],
@@ -140,18 +113,19 @@ class _CameraViewState extends State<CameraView> {
         ),
         Expanded(
           flex: 1,
-          child: Column(
+          child: Flex(
+            direction: !isHorizontal ? Axis.horizontal : Axis.vertical,
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
-            children: _menuItems(context),
+            children: isHorizontal ? _menuItems(context) : _menuItems(context).reversed.toList(),
           ),
         )
       ]),
       Align(
-        alignment: Alignment.bottomRight,
+        alignment: isHorizontal ? Alignment.bottomRight : Alignment.bottomLeft,
         child: FractionallySizedBox(
-          widthFactor: 0.33,
-          heightFactor: 0.4,
+          widthFactor: isHorizontal ? 0.33 : 0.4,
+          heightFactor: isHorizontal ? 0.4 : 0.33,
           child: Card(
             shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
             clipBehavior: Clip.hardEdge,
@@ -212,59 +186,11 @@ class _CameraViewState extends State<CameraView> {
     ];
   }
 
-  Widget _portraitBody() {
-    if (_controller?.value.isInitialized == false) {
-      return Container();
-    }
-
-    final size = MediaQuery.of(context).size;
-    // calculate scale depending on screen and camera ratios
-    // this is actually size.aspectRatio / (1 / camera.aspectRatio)
-    // because camera preview size is received as landscape
-    // but we're calculating for portrait orientation
-    var scale = size.aspectRatio * _controller!.value.aspectRatio;
-
-    // to prevent scaling down, invert the value
-    if (scale < 1) scale = 1 / scale;
-
-    return Container(
-      color: Colors.black,
-      child: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          Transform.scale(
-            scale: scale,
-            child: Center(
-              child: _changingCameraLens
-                  ? const Center(
-                      child: Text('Changing camera lens'),
-                    )
-                  : CameraPreview(_controller!),
-            ),
-          ),
-          if (widget.customPaint != null) widget.customPaint!,
-        ],
-      ),
-    );
-  }
-
-  Future _getImage(ImageSource source) async {
-    setState(() {
-      _image = null;
-      _path = null;
-    });
-    final pickedFile = await _imagePicker?.pickImage(source: source);
-    if (pickedFile != null) {
-      // _processPickedFile(pickedFile);
-    }
-    setState(() {});
-  }
-
   Future _startLiveFeed() async {
     final camera = cameras[_cameraIndex];
     _controller = CameraController(
       camera,
-      ResolutionPreset.low,
+      ResolutionPreset.medium,
       enableAudio: false,
     );
     _controller?.initialize().then((_) {
@@ -289,28 +215,6 @@ class _CameraViewState extends State<CameraView> {
     _controller = null;
   }
 
-  Future _switchLiveCamera() async {
-    setState(() => _changingCameraLens = true);
-    _cameraIndex = (_cameraIndex + 1) % cameras.length;
-
-    await _stopLiveFeed();
-    await _startLiveFeed();
-    setState(() => _changingCameraLens = false);
-  }
-
-  // Future _processPickedFile(XFile? pickedFile) async {
-  //   final path = pickedFile?.path;
-  //   if (path == null) {
-  //     return;
-  //   }
-  //   setState(() {
-  //     _image = File(path);
-  //   });
-  //   _path = path;
-  //   final inputImage = InputImage.fromFilePath(path);
-  //   widget.onImage(inputImage);
-  // }
-
   Future _processCameraImage(CameraImage inputImage) async {
     if(isolateUtils.sendPort == null){
       return;
@@ -324,11 +228,8 @@ class _CameraViewState extends State<CameraView> {
         predicting = true;
       });
 
-      var uiThreadTimeStart = DateTime
-          .now()
-          .millisecondsSinceEpoch;
       // Data to be passed to inference isolate
-      var isolateData = IsolateData(inputImage, classifier.interpreter!.address, classifier.labels!);
+      var isolateData = IsolateData(inputImage, classifier.interpreter!.address, classifier.labels!, cameras[_cameraIndex].sensorOrientation);
 
       // We could have simply used the compute method as well however
       // it would be as in-efficient as we need to continuously passing data
@@ -339,13 +240,10 @@ class _CameraViewState extends State<CameraView> {
       Map<String, dynamic> objects = await inference(isolateData);
       print(objects);
 
-      var uiThreadInferenceElapsedTime = DateTime
-          .now()
-          .millisecondsSinceEpoch - uiThreadTimeStart;
       setState(() {
         predicting = false;
       });
-      widget.onImage(objects);
+      widget.onImage(objects, inputImage.height, inputImage.width, cameras[_cameraIndex].sensorOrientation);
     }
   }
 
@@ -357,18 +255,5 @@ class _CameraViewState extends State<CameraView> {
     // TODO: Code only gets until here
     var results = await responsePort.first; //TODO: Fix, this returns null
     return results;
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) async {
-    switch (state) {
-      case AppLifecycleState.paused:
-        _controller!.stopImageStream();
-        break;
-      case AppLifecycleState.resumed:
-        await _controller!.startImageStream(_processCameraImage);
-        break;
-      default:
-    }
   }
 }

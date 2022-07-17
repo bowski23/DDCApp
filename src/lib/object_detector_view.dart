@@ -3,6 +3,7 @@ import 'dart:io' as io;
 import 'package:camera/camera.dart';
 import 'package:ddcapp/helpers/settings.dart';
 import 'package:ddcapp/yolo/classifierYolov4.dart';
+import 'package:ddcapp/yolo/recognition.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
@@ -13,6 +14,7 @@ import 'camera_view.dart';
 import 'painters/object_detector_painter.dart';
 import 'settings_page.dart';
 import 'package:image/image.dart' as imagelib;
+import 'dart:ui' as ui;
 
 class ObjectDetectorView extends StatefulWidget {
   @override
@@ -51,8 +53,8 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
       title: 'DashCam Home',
       customPaint: _customPaint,
       text: _text,
-      onImage: (objects) {
-        processImage(objects);
+      onImage: (objects, imageRotation, height, width) {
+        processImage(objects, imageRotation, height, width);
       },
       initialDirection: CameraLensDirection.back,
     );
@@ -94,7 +96,7 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
     _canProcess = true;
   }
 
-  Future<void> processImage(Map<String, dynamic>  objects) async {
+  Future<void> processImage(Map<String, dynamic> objects, int imageRotation, int height, int width) async {
     if (!_canProcess) return;
     // if (!Settings.instance.useMachineLearning.value) return;
     if (_isBusy) return;
@@ -111,8 +113,25 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
 
 
 
+    Recognition rec = objects['recognitions'][0];
+    // rec.location
 
 
+
+    var testObjects = [
+      DetectedObject(
+          boundingBox: Rect.fromLTRB(0, 0, 100, 100),
+          labels: [Label(confidence: 99, index: 0, text: "hello")],
+          trackingId: 0)
+    ];
+
+    final painter = ObjectDetectorPainter(
+        testObjects,
+        // inputImage.inputImageData!.imageRotation,
+        InputImageRotation.rotation0deg,
+        ui.Size(1000.0, 1000.0),
+    );
+    _customPaint = CustomPaint(painter: painter);
 
 
     // final objects = await _objectDetector.processImage(inputImage);

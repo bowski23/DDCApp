@@ -116,7 +116,7 @@ class IsolateUtils {
             format: imagelib.Format.bgra,
           );
         }
-        Map<String, dynamic> results = classifier.predict(image);
+        Map<String, dynamic> results = classifier.predict(image, isolateData.imageRotation);
 
         isolateData.responsePort.send(results);
       }
@@ -130,10 +130,12 @@ class IsolateData {
   late SendPort responsePort;
   int interpreterAddress;
   List<String> labels;
+  int imageRotation;
 
   IsolateData(
       this.cameraImage,
       this.interpreterAddress,
       this.labels,
+      this.imageRotation
   );
 }

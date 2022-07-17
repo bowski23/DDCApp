@@ -13,11 +13,16 @@ class Stats {
   /// Time taken to pre-process the image
   int? preProcessingTime;
 
+  int? height;
+  int? width;
+
   Stats(
       {this.totalPredictTime,
       this.totalElapsedTime,
       this.inferenceTime,
-      this.preProcessingTime});
+      this.preProcessingTime,
+      this.height,
+      this.width});
 
   @override
   String toString() {
