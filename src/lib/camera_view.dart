@@ -108,6 +108,8 @@ class _CameraViewState extends State<CameraView> {
               fit: StackFit.loose,
               children: <Widget>[
                 CameraPreview(_controller!),
+                // AspectRatio is there so the size variable of the painter gets set correctly,
+                // it has nothing to do with AspectRation itself, should be improved
                 if (customPaint != null) AspectRatio(aspectRatio: 3.0/2.0, child: customPaint!,),
               ],
             ),
@@ -192,7 +194,7 @@ class _CameraViewState extends State<CameraView> {
     final camera = cameras[_cameraIndex];
     _controller = CameraController(
       camera,
-      ResolutionPreset.medium,
+      ResolutionPreset.medium, //CHANGE ASPECT RATIO WIDGET ACCORDINGLY
       enableAudio: false,
     );
     _controller?.initialize().then((_) {
@@ -240,8 +242,8 @@ class _CameraViewState extends State<CameraView> {
       // perform inference in separate isolate
       Map<String, dynamic> rawObjects = await inference(isolateData);
 
-      // The received objects locations have a weird shape: not LTRB but TLBR
-      // Also the horizontal axis is reverse
+      // The received objects locations have a weird shape: not LTRB but TLBR,
+      // also the horizontal axis is reversed
       List<DetectedObject> processedObjects = [];
 
       if (rawObjects['recognitions'] != null) {
@@ -259,8 +261,6 @@ class _CameraViewState extends State<CameraView> {
 
         final painter = ObjectDetectorPainter(
           processedObjects,
-          // inputImage.inputImageData!.imageRotation,
-          InputImageRotation.rotation270deg,
           ui.Size(inputImage.width * 1.0, inputImage.height * 1.0),
         );
 
@@ -271,7 +271,6 @@ class _CameraViewState extends State<CameraView> {
     setState(() {
         predicting = false;
       });
-      // widget.onImage(Map<String,dynamic>(), inputImage.height, inputImage.width, cameras[_cameraIndex].sensorOrientation);
   }
 
   /// Runs inference in another isolate

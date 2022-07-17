@@ -7,11 +7,10 @@ import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart
 import '../../helpers/coordinates_translator.dart';
 
 class ObjectDetectorPainter extends CustomPainter {
-  ObjectDetectorPainter(this._objects, this.rotation, this.absoluteSize);
+  ObjectDetectorPainter(this._objects, this.absoluteSize);
 
   final List<DetectedObject> _objects;
   final Size absoluteSize;
-  final InputImageRotation rotation;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -34,15 +33,7 @@ class ObjectDetectorPainter extends CustomPainter {
 
       builder.pop();
 
-
-
-      // final left = translateX(detectedObject.boundingBox.left, InputImageRotation.rotation90deg, size,  absoluteSize);
-      // final top = translateY(detectedObject.boundingBox.top, InputImageRotation.rotation90deg, size, absoluteSize);
-      // final right = translateX(detectedObject.boundingBox.right, InputImageRotation.rotation90deg, size, absoluteSize);
-      // final bottom = translateY(detectedObject.boundingBox.bottom, InputImageRotation.rotation90deg, size, absoluteSize);
-
-
-
+      // Convert Image (absoluteSize) coordinates to Painter (size) coordinates
       final left = detectedObject.boundingBox.left * (size.width/absoluteSize.width);
       final top = detectedObject.boundingBox.top * (size.height/absoluteSize.height);
       final right = detectedObject.boundingBox.right * (size.width/absoluteSize.width);
@@ -54,7 +45,6 @@ class ObjectDetectorPainter extends CustomPainter {
         paint,
       );
 
-      print('hello');
       print(size);
 
       // canvas.drawParagraph(
