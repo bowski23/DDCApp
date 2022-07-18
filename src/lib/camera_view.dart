@@ -3,11 +3,13 @@ import 'dart:isolate';
 import 'package:camera/camera.dart';
 import 'package:ddcapp/google_map_page.dart';
 import 'package:ddcapp/graph_page.dart';
+import 'package:ddcapp/helpers/sensor_singelton.dart';
 import 'package:ddcapp/helpers/settings.dart';
 import 'package:ddcapp/settings_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:image/image.dart' as imageLib;
 
@@ -42,7 +44,7 @@ class _CameraViewState extends State<CameraView> {
   int _cameraIndex = 0;
   double zoomLevel = 0.0, minZoomLevel = 0.0, maxZoomLevel = 0.0;
   bool _recording = false;
-  DateTime _timestamp = DateTime(0);
+  String _filename = "";
   late IsolateUtils isolateUtils;
   late bool isStreaming = false;
 
@@ -197,21 +199,28 @@ class _CameraViewState extends State<CameraView> {
   }
 
   void stopRecording() {
+    var filename = _filename;
     if (!Settings.instance.useMachineLearning.value) {
-      _controller!.stopVideoRecording().then((value) {
-        if (kDebugMode) {
-          print(value.name);
-          print(value.path);
-        }
+      _controller!.stopVideoRecording().then((vid) {
+        getApplicationDocumentsDirectory().then((dir) {
+          if (kDebugMode) {
+            print("${dir.path}/$filename");
+          }
+          return vid.saveTo("${dir.path}/$filename.mp4");
+        });
       });
     }
+    SensorHelper().stopRecordingData();
     _recording = false;
   }
 
   void startRecording() {
-    _timestamp = DateTime.now();
+    _filename = DateTime.now().toIso8601String();
     if (!Settings.instance.useMachineLearning.value) {
       _controller!.startVideoRecording();
+      SensorHelper().startRecordingData(_filename, automatic: true);
+    } else {
+      SensorHelper().startRecordingData(_filename, automatic: false);
     }
     _recording = true;
   }

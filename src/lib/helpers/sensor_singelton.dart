@@ -1,12 +1,17 @@
 import 'dart:io';
 
+import 'package:camera/camera.dart';
 import 'package:cpu_reader/cpuinfo.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:cpu_reader/cpu_reader.dart';
+import 'package:path_provider/path_provider.dart';
 
 class SensorHelper {
   late SensorData _latest;
+  bool _isRecording = false;
+  File? _file;
+  int _start = 0;
 
   SensorHelper._();
 
@@ -46,6 +51,42 @@ class SensorHelper {
         cpuInfo: cpuInfo);
     SensorHelper().init();
   }
+
+  //filename withouth file type extension, all files are saved .csv
+  //
+  void startRecordingData(String filename, {bool automatic = false, int intervall = 33}) async {
+    if (_isRecording) throw const FileSystemException("SensorData is already being recorded");
+    var dir = await getApplicationDocumentsDirectory();
+    _file = File("${dir.path}/$filename.csv");
+    await _file!.writeAsString(_latest.csvHeader, mode: FileMode.append);
+    _isRecording = true;
+    _start = DateTime.now().millisecondsSinceEpoch;
+    if (automatic) {
+      _recordNext(intervall);
+    }
+  }
+
+  //call for each frame you want to record, it's a noop if the recording hasn't been started or it is stopped
+  //timestamp can be used also as sequential frame number
+  Future<void> recordStep(int timestamp) async {
+    if (!_isRecording || _file == null) return;
+    await _file!.writeAsString(_latest.stringWithTimestamp(timestamp), mode: FileMode.append);
+  }
+
+  //delay in ms
+  void _recordNext(int delay) async {
+    if (!_isRecording) return;
+    await recordStep(DateTime.now().millisecondsSinceEpoch - _start);
+    Future.delayed(Duration(milliseconds: delay), () => _recordNext(delay));
+  }
+
+  File stopRecordingData() {
+    if (!_isRecording || _file == null) throw Exception("Recording has to be started to end it!");
+    _isRecording = false;
+    var temp = _file!;
+    _file = null;
+    return temp;
+  }
 }
 
 class SensorData {
@@ -69,10 +110,24 @@ class SensorData {
         }
       }
     }
-    return "$accel, $magnet, $gyro,$batteryLevel,$cpu";
+    return "${DateTime.now().toUtc().millisecondsSinceEpoch}, $accel, $magnet, $gyro,$batteryLevel,$cpu";
   }
 
-  String get header {
+  String stringWithTimestamp(int timestamp) {
+    String cpu = "";
+    if (cpuInfo != null) {
+      cpu += ", ${cpuInfo!.cpuTemperature}";
+      if (cpuInfo!.numberOfCores != null) {
+        for (int i = 0; i < cpuInfo!.numberOfCores!; i++) {
+          cpu +=
+              ", ${cpuInfo!.currentFrequencies![i]}, ${cpuInfo!.minMaxFrequencies![i]!.max}, ${cpuInfo!.minMaxFrequencies![i]!.min}";
+        }
+      }
+    }
+    return "$timestamp, $accel, $magnet, $gyro,$batteryLevel,$cpu\n";
+  }
+
+  String get csvHeader {
     String cpu = "";
     if (cpuInfo != null) {
       cpu += ", cpuTemp";
@@ -82,7 +137,7 @@ class SensorData {
         }
       }
     }
-    return "accel_x, accel_y, accel_z, magnet_x, magnet_y, magnet_z, gyro_x, gyro_y, gyro_z, battery_level$cpu";
+    return "timestamp, accel_x, accel_y, accel_z, magnet_x, magnet_y, magnet_z, gyro_x, gyro_y, gyro_z, battery_level$cpu\n";
   }
 }
 
