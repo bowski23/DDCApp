@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:isolate';
 
 import 'package:camera/camera.dart';
@@ -202,7 +203,9 @@ class _CameraViewState extends State<CameraView> {
     var filename = _filename;
     if (!Settings.instance.useMachineLearning.value) {
       _controller!.stopVideoRecording().then((vid) {
-        getApplicationDocumentsDirectory().then((dir) {
+        var dir = Platform.isAndroid ? getExternalStorageDirectory() : getApplicationDocumentsDirectory();
+        dir.then((dir) async {
+          dir ??= await getApplicationDocumentsDirectory();
           if (kDebugMode) {
             print("${dir.path}/$filename");
           }

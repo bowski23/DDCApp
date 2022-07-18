@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:cpu_reader/cpuinfo.dart';
+import 'package:flutter/foundation.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:cpu_reader/cpu_reader.dart';
@@ -56,8 +57,12 @@ class SensorHelper {
   //
   void startRecordingData(String filename, {bool automatic = false, int intervall = 33}) async {
     if (_isRecording) throw const FileSystemException("SensorData is already being recorded");
-    var dir = await getApplicationDocumentsDirectory();
+    var dir = await (Platform.isAndroid ? getExternalStorageDirectory() : getApplicationDocumentsDirectory());
+    dir ??= await getApplicationDocumentsDirectory();
     _file = File("${dir.path}/$filename.csv");
+    if (kDebugMode) {
+      print("${dir.path}/$filename");
+    }
     await _file!.writeAsString(_latest.csvHeader, mode: FileMode.append);
     _isRecording = true;
     _start = DateTime.now().millisecondsSinceEpoch;
