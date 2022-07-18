@@ -1,17 +1,22 @@
+import 'dart:io';
 import 'dart:isolate';
 
 import 'package:camera/camera.dart';
 import 'package:ddcapp/google_map_page.dart';
 import 'package:ddcapp/graph_page.dart';
+import 'package:ddcapp/helpers/sensor_singelton.dart';
 import 'package:ddcapp/helpers/settings.dart';
 import 'package:ddcapp/painters/object_detector_painter.dart';
 import 'package:ddcapp/settings_page.dart';
+
 import 'package:ddcapp/yolo/classifierYolov4.dart';
 import 'package:ddcapp/yolo/recognition.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
+import 'package:path_provider/path_provider.dart';
+
 import 'package:provider/provider.dart';
 import 'package:image/image.dart' as imagelib;
 import 'dart:ui' as ui;
@@ -38,7 +43,7 @@ class CameraView extends StatefulWidget {
   final CameraLensDirection initialDirection;
 
   @override
-  _CameraViewState createState() => _CameraViewState();
+  State<CameraView> createState() => _CameraViewState();
 }
 
 class _CameraViewState extends State<CameraView> {
@@ -46,10 +51,14 @@ class _CameraViewState extends State<CameraView> {
   int _cameraIndex = 0;
   double zoomLevel = 0.0, minZoomLevel = 0.0, maxZoomLevel = 0.0;
   bool _recording = false;
+  String _filename = "";
   late IsolateUtils isolateUtils;
+
   late Classifier classifier;
   bool predicting = false;
   CustomPaint? customPaint;
+  late bool isStreaming = false;
+
 
   @override
   void initState() {
@@ -66,9 +75,14 @@ class _CameraViewState extends State<CameraView> {
 
     _cameraIndex = Settings.instance.chosenCamera.value;
 
-    Settings.instance.chosenCamera.notifier.addListener(() {
+    Settings.instance.chosenCamera.notifier.addListener(() async {
       _cameraIndex = Settings.instance.chosenCamera.value;
-      _stopLiveFeed();
+      await _stopLiveFeed();
+      _startLiveFeed();
+    });
+
+    Settings.instance.useMachineLearning.notifier.addListener(() async {
+      await _stopLiveFeed();
       _startLiveFeed();
     });
 
@@ -96,7 +110,7 @@ class _CameraViewState extends State<CameraView> {
   }
 
   Widget _body(BuildContext context, {bool isHorizontal = true}) {
-    if (_controller?.value.isInitialized == false) {
+    if (_controller == null || _controller!.value.isInitialized == false) {
       return Container();
     }
 
@@ -133,7 +147,7 @@ class _CameraViewState extends State<CameraView> {
           child: Card(
             shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
             clipBehavior: Clip.hardEdge,
-            child: googleMapUI(
+            child: googleMapUI(context,
                 control: false,
                 onTap: (lat) =>
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const GoogleMapPage()))),
@@ -181,7 +195,7 @@ class _CameraViewState extends State<CameraView> {
             color: Colors.white,
             onPressed: () {
               setState(() {
-                _recording = !_recording;
+                toggleRecording();
               });
             },
           )),
@@ -190,11 +204,49 @@ class _CameraViewState extends State<CameraView> {
     ];
   }
 
+  void toggleRecording() {
+    if (_controller == null) return;
+    if (_recording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  }
+
+  void stopRecording() {
+    var filename = _filename;
+    if (!Settings.instance.useMachineLearning.value) {
+      _controller!.stopVideoRecording().then((vid) {
+        var dir = Platform.isAndroid ? getExternalStorageDirectory() : getApplicationDocumentsDirectory();
+        dir.then((dir) async {
+          dir ??= await getApplicationDocumentsDirectory();
+          if (kDebugMode) {
+            print("${dir.path}/$filename");
+          }
+          return vid.saveTo("${dir.path}/$filename.mp4");
+        });
+      });
+    }
+    SensorHelper().stopRecordingData();
+    _recording = false;
+  }
+
+  void startRecording() {
+    _filename = DateTime.now().toIso8601String();
+    if (!Settings.instance.useMachineLearning.value) {
+      _controller!.startVideoRecording();
+      SensorHelper().startRecordingData(_filename, automatic: true);
+    } else {
+      SensorHelper().startRecordingData(_filename, automatic: false);
+    }
+    _recording = true;
+  }
+
   Future _startLiveFeed() async {
     final camera = cameras[_cameraIndex];
     _controller = CameraController(
       camera,
-      ResolutionPreset.medium, //CHANGE ASPECT RATIO WIDGET ACCORDINGLY
+      Settings.instance.useMachineLearning.value ? ResolutionPreset.medium : ResolutionPreset.max,
       enableAudio: false,
     );
     _controller?.initialize().then((_) {
@@ -208,19 +260,32 @@ class _CameraViewState extends State<CameraView> {
       _controller?.getMaxZoomLevel().then((value) {
         maxZoomLevel = value;
       });
-      _controller?.startImageStream(_processCameraImage);
+      _controller!.prepareForVideoRecording();
+      if (Settings.instance.useMachineLearning.value) {
+        _controller?.startImageStream(_processCameraImage);
+        isStreaming = true;
+      }
       setState(() {});
     });
   }
 
   Future _stopLiveFeed() async {
-    await _controller?.stopImageStream();
+    if (_controller == null) return;
+    if (isStreaming) {
+      await _controller?.stopImageStream();
+      isStreaming = false;
+    }
+    if (_recording) {
+      await _controller?.stopVideoRecording();
+    }
     await _controller?.dispose();
     _controller = null;
   }
 
-  Future _processCameraImage(CameraImage inputImage) async {
-    if (!Settings.instance.useMachineLearning.value) return;
+
+  Future _processCameraImage(CameraImage image) async {
+    if (_controller == null || !Settings.instance.useMachineLearning.value ) return;
+    var uiThreadTimeStart = DateTime.now().millisecondsSinceEpoch;
 
 
     if(isolateUtils.sendPort == null){

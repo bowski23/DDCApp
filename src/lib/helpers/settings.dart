@@ -18,7 +18,6 @@ class Settings {
   }
 
   static bool ensureInitialized() {
-    var temp = instance;
     if (instance != null) return true;
     return false;
   }
@@ -27,16 +26,16 @@ class Settings {
 }
 
 class Setting<T> {
-  String _key;
+  final String _key;
   T? _value;
-  T _defaultValue;
+  final T _defaultValue;
   SharedPreferences? _prefs;
-  List<T>? _enumValues;
+  final List<T>? _enumValues;
   ValueNotifier<T> notifier;
 
   //as generic enums aren't easily handable in flutter we use as a workaround the passing of the enum values at definition as a parameter.
   Setting(this._key, this._defaultValue, {List<T>? enumValues})
-      : this._enumValues = enumValues,
+      : _enumValues = enumValues,
         notifier = ValueNotifier<T>(_defaultValue) {
     _init();
   }
@@ -45,9 +44,9 @@ class Setting<T> {
     _prefs = await SharedPreferences.getInstance();
     if (_prefs == null) throw Exception("Shared Preferences couldn't be loaded");
 
-    if (!_prefs!.containsKey(_key))
+    if (!_prefs!.containsKey(_key)) {
       _value = _defaultValue;
-    else {
+    } else {
       switch (T) {
         case String:
           _value = _prefs!.getString(_key) as T;
@@ -67,11 +66,11 @@ class Setting<T> {
             _value = index != null ? _enumValues![index] : null;
             break;
           }
-          throw Exception("Setting of type " + T.toString() + " with key " + _key + "is not viable");
+          throw Exception("Setting of type $T with key ${_key}is not viable");
       }
     }
 
-    notifier.value = this.value;
+    notifier.value = value;
   }
 
   T get value {
@@ -86,11 +85,11 @@ class Setting<T> {
     if (val == null) {
       _value = null;
       _prefs!.remove(_key);
-      notifier.value = this.value;
+      notifier.value = value;
       return;
     } else {
       _value = val;
-      notifier.value = this.value;
+      notifier.value = value;
     }
 
     switch (T) {
@@ -111,7 +110,7 @@ class Setting<T> {
           _prefs!.setInt(_key, (_value as Enum).index);
           break;
         }
-        assert(false, "Setting of type " + T.toString() + " with key " + _key + "is not viable");
+        assert(false, "Setting of type $T with key ${_key}is not viable");
     }
   }
 
@@ -121,7 +120,7 @@ class Setting<T> {
 
   List<T>? get enumValues {
     if (T is Enum) {
-      return this._enumValues;
+      return _enumValues;
     } else {
       return null;
     }

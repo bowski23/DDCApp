@@ -1,7 +1,4 @@
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/src/foundation/key.dart';
-import 'package:flutter/src/widgets/framework.dart';
 
 import 'helpers/settings.dart';
 import 'main.dart';
@@ -20,8 +17,8 @@ class _SettingsPageState extends State<SettingsPage> {
     for (int i = 0; i < cameras.length; i++) {
       var camera = cameras[i];
       cameraDropdownItems.add(DropdownMenuItem(
-        child: Text("${camera.name} - ${camera.lensDirection.name}"),
         value: i,
+        child: Text("${camera.name} - ${camera.lensDirection.name}"),
       ));
     }
   }
@@ -29,7 +26,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: Row(children: [Icon(Icons.settings), Text("Settings")])),
+        appBar: AppBar(title: Row(children: const [Icon(Icons.settings), Text("Settings")])),
         body: Column(
           children: [
             DropDownSettingWidget<int>(
@@ -50,29 +47,26 @@ class _SettingsPageState extends State<SettingsPage> {
 }
 
 class SettingWidget<T> extends StatelessWidget {
-  Setting<T> _setting;
-  String description;
-  IconData? icon;
-  Widget child;
+  final Setting<T> _setting;
+  final String description;
+  final IconData? icon;
+  final Widget child;
 
-  SettingWidget(this._setting, {required this.child, this.description = '', this.icon}) {
-    if (description.isEmpty) {
-      description = _setting.value.runtimeType.toString();
-    }
-  }
-
+  SettingWidget(this._setting, {Key? key, required this.child, String description = '', this.icon})
+      : description = description.isEmpty ? _setting.value.runtimeType.toString() : description,
+        super(key: key);
   @override
   Widget build(BuildContext context) {
     return Container(
         decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor))),
-        margin: EdgeInsets.only(left: 10, right: 10, top: 5, bottom: 5),
+        margin: const EdgeInsets.only(left: 10, right: 10, top: 5, bottom: 5),
         child: Row(
           children: [
             Container(
-              child: SizedBox(width: 50, height: 40, child: icon != null ? Icon(icon) : null),
-              margin: EdgeInsets.only(right: 10),
+              margin: const EdgeInsets.only(right: 10),
               decoration: BoxDecoration(
                   border: Border(right: BorderSide(color: Theme.of(context).dividerColor.withAlpha(128)))),
+              child: SizedBox(width: 50, height: 40, child: icon != null ? Icon(icon) : null),
             ),
             Flexible(
               child: Text(
@@ -81,7 +75,8 @@ class SettingWidget<T> extends StatelessWidget {
                 maxLines: 3,
               ),
             ),
-            Container(constraints: BoxConstraints(minWidth: 100), child: child, margin: EdgeInsets.only(left: 10))
+            Container(
+                constraints: const BoxConstraints(minWidth: 100), margin: const EdgeInsets.only(left: 10), child: child)
           ],
         ));
   }
