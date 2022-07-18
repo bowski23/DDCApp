@@ -133,7 +133,7 @@ class _CameraViewState extends State<CameraView> {
           child: Card(
             shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
             clipBehavior: Clip.hardEdge,
-            child: googleMapUI(
+            child: googleMapUI(context,
                 control: false,
                 onTap: (lat) =>
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const GoogleMapPage()))),

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'marker.dart';
 import 'google_map_page.dart';
 import 'helpers/settings.dart';
 
@@ -28,6 +29,9 @@ Future<void> main() async {
           create: (context) => LocationProvider(),
           child: const GoogleMapPage(),
         ),
+        ChangeNotifierProvider(
+          create: (_) => CreateMarker(),
+        )
       ],
       child: MaterialApp(
         home: ObjectDetectorView(),
