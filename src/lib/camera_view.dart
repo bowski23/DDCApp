@@ -6,13 +6,20 @@ import 'package:ddcapp/google_map_page.dart';
 import 'package:ddcapp/graph_page.dart';
 import 'package:ddcapp/helpers/sensor_singelton.dart';
 import 'package:ddcapp/helpers/settings.dart';
+import 'package:ddcapp/painters/object_detector_painter.dart';
 import 'package:ddcapp/settings_page.dart';
+
+import 'package:ddcapp/yolo/classifierYolov4.dart';
+import 'package:ddcapp/yolo/recognition.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
+import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
 import 'package:path_provider/path_provider.dart';
+
 import 'package:provider/provider.dart';
-import 'package:image/image.dart' as imageLib;
+import 'package:image/image.dart' as imagelib;
+import 'dart:ui' as ui;
 
 import 'helpers/isolate_utils.dart';
 import 'main.dart';
@@ -24,16 +31,15 @@ class CameraView extends StatefulWidget {
   const CameraView(
       {Key? key,
       required this.title,
-      required this.customPaint,
       this.text,
       required this.onImage,
       this.initialDirection = CameraLensDirection.back})
       : super(key: key);
 
   final String title;
-  final CustomPaint? customPaint;
+
   final String? text;
-  final Function(InputImage inputImage) onImage;
+  final Function(Map<String, dynamic> objects, int imageRotation, int height, int width) onImage;
   final CameraLensDirection initialDirection;
 
   @override
@@ -47,11 +53,18 @@ class _CameraViewState extends State<CameraView> {
   bool _recording = false;
   String _filename = "";
   late IsolateUtils isolateUtils;
+
+  late Classifier classifier;
+  bool predicting = false;
+  CustomPaint? customPaint;
   late bool isStreaming = false;
+
 
   @override
   void initState() {
     super.initState();
+
+    classifier = Classifier();
 
     isolateUtils = IsolateUtils();
     isolateUtils.start();
@@ -105,14 +118,15 @@ class _CameraViewState extends State<CameraView> {
       Flex(direction: isHorizontal ? Axis.horizontal : Axis.vertical, children: [
         Expanded(
           flex: 7,
-          child: Stack(
-            fit: StackFit.loose,
-            children: <Widget>[
-              Center(
-                child: CameraPreview(_controller!),
-              ),
-              if (widget.customPaint != null) widget.customPaint!,
-            ],
+          child: Center(child: Stack(
+              fit: StackFit.loose,
+              children: <Widget>[
+                CameraPreview(_controller!),
+                // AspectRatio is there so the size variable of the painter gets set correctly,
+                // it has nothing to do with AspectRation itself, should be improved
+                if (customPaint != null) AspectRatio(aspectRatio: 3.0/2.0, child: customPaint!,),
+              ],
+            ),
           ),
         ),
         Expanded(
@@ -268,30 +282,70 @@ class _CameraViewState extends State<CameraView> {
     _controller = null;
   }
 
+
   Future _processCameraImage(CameraImage image) async {
-    if (_controller == null) return;
+    if (_controller == null || !Settings.instance.useMachineLearning.value ) return;
     var uiThreadTimeStart = DateTime.now().millisecondsSinceEpoch;
 
-    // Data to be passed to inference isolate
-    var isolateData = IsolateData(image);
 
-    // We could have simply used the compute method as well however
-    // it would be as in-efficient as we need to continuously passing data
-    // to another isolate.
+    if(isolateUtils.sendPort == null){
+      return;
+    }
 
-    /// perform inference in separate isolate
-    imageLib.Image inferenceResults = await inference(isolateData);
+    if (classifier.interpreter != null && classifier.labels != null) {
+      // If previous inference has not completed then return
+      if (predicting) {
+        return;
+      }
+      setState(() {
+        predicting = true;
+      });
 
-    var uiThreadInferenceElapsedTime = DateTime.now().millisecondsSinceEpoch - uiThreadTimeStart;
+      // Data to be passed to inference isolate
+      var isolateData = IsolateData(inputImage, classifier.interpreter!.address, classifier.labels!, cameras[_cameraIndex].sensorOrientation);
 
-    //widget.onImage(inputImage);
+      // perform inference in separate isolate
+      Map<String, dynamic> rawResults = await inference(isolateData);
+
+      // The received objects locations have a weird shape: not LTRB but TLBR,
+      // also the horizontal axis is reversed
+      List<DetectedObject> processedObjects = [];
+
+      if (rawResults['recognitions'] != null) {
+        List<Recognition> recognitions = rawResults['recognitions'];
+        for (Recognition recognition in recognitions) {
+          Rect loc = recognition.location;
+          processedObjects.add(DetectedObject(
+              // For explanation see comments above
+              boundingBox: Rect.fromLTRB((loc.top - inputImage.width).abs(),
+                  loc.left, (loc.bottom - inputImage.width).abs(), loc.right),
+              labels: [Label(confidence: 99, index: 2, text: "something")],
+              // TODO: Remove unnecessary stuff
+              trackingId: 0));
+        }
+
+        final painter = ObjectDetectorPainter(
+          processedObjects,
+          ui.Size(inputImage.width * 1.0, inputImage.height * 1.0),
+          rawResults['stats']
+        );
+
+        customPaint = CustomPaint(painter: painter);
+      }
+    }
+
+    setState(() {
+        predicting = false;
+      });
   }
 
   /// Runs inference in another isolate
-  Future<imageLib.Image> inference(IsolateData isolateData) async {
+  Future<Map<String, dynamic>> inference(IsolateData isolateData) async {
     ReceivePort responsePort = ReceivePort();
     isolateUtils.sendPort.send(isolateData..responsePort = responsePort.sendPort);
-    var results = await responsePort.first;
+
+    // TODO: Code only gets until here
+    var results = await responsePort.first; //TODO: Fix, this returns null
     return results;
   }
 }
