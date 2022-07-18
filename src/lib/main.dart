@@ -1,4 +1,5 @@
 import 'package:camera/camera.dart';
+import 'package:ddcapp/helpers/sensor_singelton.dart';
 import 'package:ddcapp/object_detector_view.dart';
 import 'package:ddcapp/provider/location_provider.dart';
 import 'package:flutter/foundation.dart';
@@ -13,6 +14,7 @@ late List<CameraDescription> cameras;
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   Settings.ensureInitialized();
+  await SensorHelper.ensureInitialized();
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
   cameras = await availableCameras();
