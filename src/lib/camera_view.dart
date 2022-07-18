@@ -9,16 +9,14 @@ import 'package:ddcapp/helpers/settings.dart';
 import 'package:ddcapp/painters/object_detector_painter.dart';
 import 'package:ddcapp/settings_page.dart';
 
-import 'package:ddcapp/yolo/classifierYolov4.dart';
+import 'package:ddcapp/yolo/classifier_yolov4.dart';
 import 'package:ddcapp/yolo/recognition.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:provider/provider.dart';
-import 'package:image/image.dart' as imagelib;
 import 'dart:ui' as ui;
 
 import 'helpers/isolate_utils.dart';
@@ -28,18 +26,12 @@ import 'provider/location_provider.dart';
 enum ScreenMode { liveFeed, gallery }
 
 class CameraView extends StatefulWidget {
-  const CameraView(
-      {Key? key,
-      required this.title,
-      this.text,
-      required this.onImage,
-      this.initialDirection = CameraLensDirection.back})
+  const CameraView({Key? key, required this.title, this.text, this.initialDirection = CameraLensDirection.back})
       : super(key: key);
 
   final String title;
 
   final String? text;
-  final Function(Map<String, dynamic> objects, int imageRotation, int height, int width) onImage;
   final CameraLensDirection initialDirection;
 
   @override
@@ -58,7 +50,6 @@ class _CameraViewState extends State<CameraView> {
   bool predicting = false;
   CustomPaint? customPaint;
   late bool isStreaming = false;
-
 
   @override
   void initState() {
@@ -118,13 +109,18 @@ class _CameraViewState extends State<CameraView> {
       Flex(direction: isHorizontal ? Axis.horizontal : Axis.vertical, children: [
         Expanded(
           flex: 7,
-          child: Center(child: Stack(
+          child: Center(
+            child: Stack(
               fit: StackFit.loose,
               children: <Widget>[
                 CameraPreview(_controller!),
                 // AspectRatio is there so the size variable of the painter gets set correctly,
                 // it has nothing to do with AspectRation itself, should be improved
-                if (customPaint != null) AspectRatio(aspectRatio: 3.0/2.0, child: customPaint!,),
+                if (customPaint != null)
+                  AspectRatio(
+                    aspectRatio: 3.0 / 2.0,
+                    child: customPaint!,
+                  ),
               ],
             ),
           ),
@@ -282,13 +278,11 @@ class _CameraViewState extends State<CameraView> {
     _controller = null;
   }
 
+  Future _processCameraImage(CameraImage inputImage) async {
+    if (_controller == null || !Settings.instance.useMachineLearning.value) return;
 
-  Future _processCameraImage(CameraImage image) async {
-    if (_controller == null || !Settings.instance.useMachineLearning.value ) return;
-    var uiThreadTimeStart = DateTime.now().millisecondsSinceEpoch;
-
-
-    if(isolateUtils.sendPort == null){
+    // ignore: unnecessary_null_comparison
+    if (isolateUtils.sendPort == null) {
       return;
     }
 
@@ -302,7 +296,8 @@ class _CameraViewState extends State<CameraView> {
       });
 
       // Data to be passed to inference isolate
-      var isolateData = IsolateData(inputImage, classifier.interpreter!.address, classifier.labels!, cameras[_cameraIndex].sensorOrientation);
+      var isolateData = IsolateData(
+          inputImage, classifier.interpreter!.address, classifier.labels!, cameras[_cameraIndex].sensorOrientation);
 
       // perform inference in separate isolate
       Map<String, dynamic> rawResults = await inference(isolateData);
@@ -317,26 +312,22 @@ class _CameraViewState extends State<CameraView> {
           Rect loc = recognition.location;
           processedObjects.add(DetectedObject(
               // For explanation see comments above
-              boundingBox: Rect.fromLTRB((loc.top - inputImage.width).abs(),
-                  loc.left, (loc.bottom - inputImage.width).abs(), loc.right),
+              boundingBox: Rect.fromLTRB(
+                  (loc.top - inputImage.width).abs(), loc.left, (loc.bottom - inputImage.width).abs(), loc.right),
               labels: [Label(confidence: 99, index: 2, text: "something")],
-              // TODO: Remove unnecessary stuff
               trackingId: 0));
         }
 
         final painter = ObjectDetectorPainter(
-          processedObjects,
-          ui.Size(inputImage.width * 1.0, inputImage.height * 1.0),
-          rawResults['stats']
-        );
+            processedObjects, ui.Size(inputImage.width * 1.0, inputImage.height * 1.0), rawResults['stats']);
 
         customPaint = CustomPaint(painter: painter);
       }
     }
 
     setState(() {
-        predicting = false;
-      });
+      predicting = false;
+    });
   }
 
   /// Runs inference in another isolate
@@ -344,8 +335,7 @@ class _CameraViewState extends State<CameraView> {
     ReceivePort responsePort = ReceivePort();
     isolateUtils.sendPort.send(isolateData..responsePort = responsePort.sendPort);
 
-    // TODO: Code only gets until here
-    var results = await responsePort.first; //TODO: Fix, this returns null
+    var results = await responsePort.first;
     return results;
   }
 }

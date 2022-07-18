@@ -47,6 +47,7 @@ class _SettingsPageState extends State<SettingsPage> {
 }
 
 class SettingWidget<T> extends StatelessWidget {
+  // ignore: unused_field
   final Setting<T> _setting;
   final String description;
   final IconData? icon;

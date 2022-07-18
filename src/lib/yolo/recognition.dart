@@ -6,21 +6,20 @@ import 'camera_view_singleton.dart';
 /// Represents the recognition output from the model
 class Recognition implements Comparable<Recognition> {
   /// Index of the result
-  int _id;
+  final int _id;
 
   /// Label of the result
-  String _label;
+  final String _label;
 
   /// Confidence [0.0, 1.0]
-  double _score;
+  final double _score;
 
   /// Location of bounding box rect
   ///
   /// The rectangle corresponds to the raw input image
   /// passed for inference
-  Rect _location;
+  final Rect _location;
 
-  // TODO: Check if this works
   Recognition(this._id, this._label, this._score, this._location);
 
   int get id => _id;
@@ -45,13 +44,10 @@ class Recognition implements Comparable<Recognition> {
 
     double transLeft = max(0.1, location.left * ratioX);
     double transTop = max(0.1, location.top * ratioY);
-    double transWidth = min(
-        location.width * ratioX, CameraViewSingleton.actualPreviewSize.width);
-    double transHeight = min(
-        location.height * ratioY, CameraViewSingleton.actualPreviewSize.height);
+    double transWidth = min(location.width * ratioX, CameraViewSingleton.actualPreviewSize.width);
+    double transHeight = min(location.height * ratioY, CameraViewSingleton.actualPreviewSize.height);
 
-    Rect transformedRect =
-        Rect.fromLTWH(transLeft, transTop, transWidth, transHeight);
+    Rect transformedRect = Rect.fromLTWH(transLeft, transTop, transWidth, transHeight);
     return transformedRect;
   }
 
@@ -62,9 +58,9 @@ class Recognition implements Comparable<Recognition> {
 
   @override
   int compareTo(Recognition other) {
-    if (this.score == other.score) {
+    if (score == other.score) {
       return 0;
-    } else if (this.score > other.score) {
+    } else if (score > other.score) {
       return -1;
     } else {
       return 1;

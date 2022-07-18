@@ -1,6 +1,6 @@
 import 'package:camera/camera.dart';
+import 'package:ddcapp/camera_view.dart';
 import 'package:ddcapp/helpers/sensor_singelton.dart';
-import 'package:ddcapp/object_detector_view.dart';
 import 'package:ddcapp/provider/location_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -34,7 +34,9 @@ Future<void> main() async {
         )
       ],
       child: MaterialApp(
-        home: ObjectDetectorView(),
+        home: const CameraView(
+          title: 'Camera',
+        ),
         theme: ThemeData(iconTheme: const IconThemeData(color: Colors.grey)),
         themeMode: ThemeMode.dark,
       )));

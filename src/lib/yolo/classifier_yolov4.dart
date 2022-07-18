@@ -2,8 +2,9 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:collection/collection.dart';
 import 'package:ddcapp/yolo/recognition.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:image/image.dart' as imageLib;
+import 'package:image/image.dart' as image_lib;
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:tflite_flutter_helper/tflite_flutter_helper.dart';
 
@@ -21,14 +22,14 @@ class Classifier {
 
   /// Labels file loaded as list
   List<String>? _labels;
-  static const String MODEL_FILE_NAME = "yolov4-rebite-fp16.tflite";
-  static const String LABEL_FILE_NAME = "obj.txt";
+  static const String modelFileName = "yolov4-rebite-fp16.tflite";
+  static const String labelFileName = "obj.txt";
 
   /// Input size of image (heixght = width = 300)
-  static const int INPUT_SIZE = 416;
+  static const int inputSize = 416;
 
   /// Confidence Probabilty score threshold
-  static const double THRESHOLD = 0.5;
+  static const double threshold = 0.5;
 
   /// Non-maximum suppression threshold
   static double mNmsThresh = 0.6;
@@ -46,7 +47,7 @@ class Classifier {
   List<TfLiteType>? _outputTypes;
 
   /// Number of results to show
-  static const int NUM_RESULTS = 10;
+  static const int numResults = 10;
 
   Classifier({
     Interpreter? interpreter,
@@ -78,67 +79,65 @@ class Classifier {
 
       _interpreter = interpreter ??
           await Interpreter.fromAsset(
-            MODEL_FILE_NAME,
+            modelFileName,
             options: InterpreterOptions()..threads = numThreads, //myOptions,
           );
 
       // WidgetsFlutterBinding.ensureInitialized();
 
-
       var outputTensors = _interpreter!.getOutputTensors();
       //print("the length of the ouput Tensors is ${outputTensors.length}");
       _outputShapes = [];
       _outputTypes = [];
-      outputTensors.forEach((tensor) {
+      for (var tensor in outputTensors) {
         //print(tensor.toString());
         _outputShapes!.add(tensor.shape);
         _outputTypes!.add(tensor.type);
-      });
+      }
     } catch (e) {
-      print("Error while creating interpreter: $e");
+      if (kDebugMode) {
+        print("Error while creating interpreter: $e");
+      }
     }
   }
 
   /// Loads labels from assets
   void loadLabels({List<String>? labels}) async {
     try {
-      _labels =
-          labels ?? await FileUtil.loadLabels("assets/" + LABEL_FILE_NAME);
+      _labels = labels ?? await FileUtil.loadLabels("assets/$labelFileName");
     } catch (e) {
-      print("Error while loading labels: $e");
+      if (kDebugMode) {
+        print("Error while loading labels: $e");
+      }
     }
   }
 
   /// Pre-process the image
   /// Only does something to the image if it doesn't meet the specified input sizes.
   TensorImage getProcessedImage(TensorImage inputImage, int imageRotation) {
-    print(imageRotation);
     padSize = max(inputImage.height, inputImage.width);
-    if (imageProcessor == null) {
-      imageProcessor = ImageProcessorBuilder()
-          .add(Rot90Op(3))
-          .add(ResizeWithCropOrPadOp(padSize!, padSize!))
-          .add(ResizeOp(INPUT_SIZE, INPUT_SIZE, ResizeMethod.BILINEAR))
-          .add(NormalizeOp(0, 255))
-          .build();
-    }
+    imageProcessor ??= ImageProcessorBuilder()
+        .add(Rot90Op(3))
+        .add(ResizeWithCropOrPadOp(padSize!, padSize!))
+        .add(ResizeOp(inputSize, inputSize, ResizeMethod.BILINEAR))
+        .add(NormalizeOp(0, 255))
+        .build();
     inputImage = imageProcessor!.process(inputImage);
     return inputImage;
   }
 
   // non-maximum suppression
-  List<Recognition> nms(
-      List<Recognition> list) // Turned from Java's ArrayList to Dart's List.
+  List<Recognition> nms(List<Recognition> list) // Turned from Java's ArrayList to Dart's List.
   {
     List<Recognition> nmsList = [];
 
-    if(_labels == null){
+    if (_labels == null) {
       return [];
     }
 
     for (int k = 0; k < _labels!.length; k++) {
       // 1.find max confidence per class
-      PriorityQueue<Recognition> pq = new HeapPriorityQueue<Recognition>();
+      PriorityQueue<Recognition> pq = HeapPriorityQueue<Recognition>();
       for (int i = 0; i < list.length; ++i) {
         if (list[i].label == _labels![k]) {
           // Changed from comparing #th class to class to string to string
@@ -171,10 +170,8 @@ class Classifier {
   }
 
   double boxIntersection(Rect a, Rect b) {
-    double w = overlap((a.left + a.right) / 2, a.right - a.left,
-        (b.left + b.right) / 2, b.right - b.left);
-    double h = overlap((a.top + a.bottom) / 2, a.bottom - a.top,
-        (b.top + b.bottom) / 2, b.bottom - b.top);
+    double w = overlap((a.left + a.right) / 2, a.right - a.left, (b.left + b.right) / 2, b.right - b.left);
+    double h = overlap((a.top + a.bottom) / 2, a.bottom - a.top, (b.top + b.bottom) / 2, b.bottom - b.top);
     if ((w < 0) || (h < 0)) {
       return 0;
     }
@@ -184,9 +181,7 @@ class Classifier {
 
   double boxUnion(Rect a, Rect b) {
     double i = boxIntersection(a, b);
-    double u = ((((a.right - a.left) * (a.bottom - a.top)) +
-        ((b.right - b.left) * (b.bottom - b.top))) -
-        i);
+    double u = ((((a.right - a.left) * (a.bottom - a.top)) + ((b.right - b.left) * (b.bottom - b.top))) - i);
     return u;
   }
 
@@ -201,27 +196,24 @@ class Classifier {
   }
 
   /// Runs object detection on the input image
-  Map<String, dynamic> predict(imageLib.Image image, int imageRotation) {
+  Map<String, dynamic> predict(image_lib.Image image, int imageRotation) {
     var predictStartTime = DateTime.now().millisecondsSinceEpoch;
 
     if (_interpreter == null || _outputShapes == null || _labels == null) {
-      print('something was null');
-      if(_interpreter == null) {
-        print('_interpreter == null');
-      }
-      if(_outputShapes == null) {
-        print('_outputShapes == null');
-      }
-      if(_labels == null) {
-        print('_labels == null');
+      if (kDebugMode) {
+        if (_interpreter == null) {
+          print('_interpreter == null');
+        }
+        if (_outputShapes == null) {
+          print('_outputShapes == null');
+        }
+        if (_labels == null) {
+          print('_labels == null');
+        }
       }
       return {
         "recognitions": [],
-        "stats": Stats(
-            totalPredictTime: 0,
-            inferenceTime: 0,
-            preProcessingTime: 0,
-            totalElapsedTime: 0)
+        "stats": Stats(totalPredictTime: 0, inferenceTime: 0, preProcessingTime: 0, totalElapsedTime: 0)
       };
     }
     var preProcessStart = DateTime.now().millisecondsSinceEpoch;
@@ -241,18 +233,13 @@ class Classifier {
     inputImage = getProcessedImage(inputImage, imageRotation);
     //getProcessedImage(inputImage);
 
-    var preProcessElapsedTime =
-        DateTime.now().millisecondsSinceEpoch - preProcessStart;
+    var preProcessElapsedTime = DateTime.now().millisecondsSinceEpoch - preProcessStart;
 
     // TensorBuffers for output tensors
-    TensorBuffer outputLocations = TensorBufferFloat(
-        _outputShapes![0]); // The location of each detected object
+    TensorBuffer outputLocations = TensorBufferFloat(_outputShapes![0]); // The location of each detected object
 
-    List<List<List<double>>> outputClassScores = new List.generate(
-        _outputShapes![1][0],
-            (_) => new List.generate(_outputShapes![1][1],
-                (_) => new List.filled(_outputShapes![1][2], 0.0),
-            growable: false),
+    List<List<List<double>>> outputClassScores = List.generate(_outputShapes![1][0],
+        (_) => List.generate(_outputShapes![1][1], (_) => List.filled(_outputShapes![1][2], 0.0), growable: false),
         growable: false);
 
     // Inputs object for runForMultipleInputs
@@ -266,13 +253,11 @@ class Classifier {
     };
 
     var inferenceTimeStart = DateTime.now().millisecondsSinceEpoch;
-    print(inputs[0].runtimeType);
-    print(inputs[0].toString());
+
     // run inference
     _interpreter!.runForMultipleInputs(inputs, outputs);
 
-    var inferenceTimeElapsed =
-        DateTime.now().millisecondsSinceEpoch - inferenceTimeStart;
+    var inferenceTimeElapsed = DateTime.now().millisecondsSinceEpoch - inferenceTimeStart;
 
     // Using bounding box utils for easy conversion of tensorbuffer to List<Rect>
     List<Rect> locations = BoundingBoxUtils.convert(
@@ -281,8 +266,8 @@ class Classifier {
       boundingBoxAxis: 2,
       boundingBoxType: BoundingBoxType.CENTER,
       coordinateType: CoordinateType.PIXEL,
-      height: INPUT_SIZE,
-      width: INPUT_SIZE,
+      height: inputSize,
+      width: inputSize,
     );
 
     //print(locations.length);
@@ -310,29 +295,25 @@ class Classifier {
       // Prediction score
       var score = maxClassScore;
 
-      var label;
+      String label;
       if (labelIndex != -1) {
         // Label string
         label = _labels!.elementAt(labelIndex);
       } else {
-        label = null;
+        label = "";
       }
       // Makes sure the confidence is above the
       // minimum threshold score for each object.
-      if (score > THRESHOLD) {
+      if (score > threshold) {
         // inverse of rect
         // [locations] corresponds to the image size 300 X 300
         // inverseTransformRect transforms it our [inputImage]
 
-        Rect rectAti = Rect.fromLTRB(
-            max(0, locations[i].left),
-            max(0, locations[i].top),
-            min(INPUT_SIZE + 0.0, locations[i].right),
-            min(INPUT_SIZE + 0.0, locations[i].bottom));
+        Rect rectAti = Rect.fromLTRB(max(0, locations[i].left), max(0, locations[i].top),
+            min(inputSize + 0.0, locations[i].right), min(inputSize + 0.0, locations[i].bottom));
 
         // Gets the coordinates based on the original image if anything was done to it.
-        Rect transformedRect = imageProcessor!.inverseTransformRect(
-            rectAti, image.height, image.width);
+        Rect transformedRect = imageProcessor!.inverseTransformRect(rectAti, image.height, image.width);
 
         recognitions.add(
           Recognition(i, label, score, transformedRect),
@@ -340,10 +321,8 @@ class Classifier {
       }
     } // End of for loop and added all recognitions
     List<Recognition> recognitionsNMS = nms(recognitions);
-    var predictElapsedTime =
-        DateTime.now().millisecondsSinceEpoch - predictStartTime;
+    var predictElapsedTime = DateTime.now().millisecondsSinceEpoch - predictStartTime;
 
-    // print("Furkan");
     var temp = {
       "recognitions": recognitionsNMS,
       "stats": Stats(
@@ -352,7 +331,6 @@ class Classifier {
           preProcessingTime: preProcessElapsedTime,
           totalElapsedTime: 0)
     };
-    print(temp);
 
     return temp;
   }

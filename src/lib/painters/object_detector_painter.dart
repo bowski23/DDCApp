@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
 
-import '../../helpers/coordinates_translator.dart';
 import '../yolo/stats.dart';
 
 class ObjectDetectorPainter extends CustomPainter {
@@ -21,7 +20,7 @@ class ObjectDetectorPainter extends CustomPainter {
       ..strokeWidth = 3.0
       ..color = Colors.lightGreenAccent;
 
-    final Paint background = Paint()..color = Color(0x99000000);
+    final Paint background = Paint()..color = const Color(0x99000000);
 
     for (final DetectedObject detectedObject in _objects) {
       final ParagraphBuilder builder = ParagraphBuilder(
@@ -36,11 +35,10 @@ class ObjectDetectorPainter extends CustomPainter {
       builder.pop();
 
       // Convert Image (absoluteSize) coordinates to Painter (size) coordinates
-      final left = detectedObject.boundingBox.left * (size.width/absoluteSize.width);
-      final top = detectedObject.boundingBox.top * (size.height/absoluteSize.height);
-      final right = detectedObject.boundingBox.right * (size.width/absoluteSize.width);
-      final bottom = detectedObject.boundingBox.bottom * (size.height/absoluteSize.height);
-
+      final left = detectedObject.boundingBox.left * (size.width / absoluteSize.width);
+      final top = detectedObject.boundingBox.top * (size.height / absoluteSize.height);
+      final right = detectedObject.boundingBox.right * (size.width / absoluteSize.width);
+      final bottom = detectedObject.boundingBox.bottom * (size.height / absoluteSize.height);
 
       canvas.drawRect(
         Rect.fromLTRB(left, top, right, bottom),
@@ -50,20 +48,17 @@ class ObjectDetectorPainter extends CustomPainter {
       // draw information text
       final ParagraphBuilder builderT = ParagraphBuilder(
         ParagraphStyle(
-          // textAlign: TextAlign.left,
+            // textAlign: TextAlign.left,
             fontSize: 10,
             textDirection: TextDirection.ltr),
       );
       builderT.addText("totalPredTime: \n ${stats.totalPredictTime} ms\n\n"
           "inferenceTime: \n ${stats.inferenceTime} ms\n\n"
           "preProcTime: \n ${stats.preProcessingTime} ms");
-      builderT.pushStyle(
-          ui.TextStyle(color: Colors.lightGreenAccent, background: background));
+      builderT.pushStyle(ui.TextStyle(color: Colors.lightGreenAccent, background: background));
 
       canvas.drawParagraph(
-          builderT.build()
-            ..layout(const ParagraphConstraints(width: double.infinity)),
-          const Offset(0, 0));
+          builderT.build()..layout(const ParagraphConstraints(width: double.infinity)), const Offset(0, 0));
 
       // canvas.drawParagraph(
       //   builder.build()

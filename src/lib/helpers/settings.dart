@@ -18,6 +18,7 @@ class Settings {
   }
 
   static bool ensureInitialized() {
+    // ignore: unnecessary_null_comparison
     if (instance != null) return true;
     return false;
   }

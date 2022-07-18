@@ -90,11 +90,10 @@ class ThreeDimDataLineChart extends StatefulWidget {
   const ThreeDimDataLineChart({Key? key, required this.eventStream}) : super(key: key);
 
   @override
-  State<ThreeDimDataLineChart> createState() => _ThreeDimDataLineChartState(eventStream);
+  State<ThreeDimDataLineChart> createState() => _ThreeDimDataLineChartState();
 }
 
 class _ThreeDimDataLineChartState extends State<ThreeDimDataLineChart> {
-  Stream eventStream;
   List<_EventWrapper> data = [];
   Series<_EventWrapper, DateTime>? displayedX;
   Series<_EventWrapper, DateTime>? displayedY;
@@ -105,7 +104,7 @@ class _ThreeDimDataLineChartState extends State<ThreeDimDataLineChart> {
 
   static const int dataPointLimit = 200;
 
-  _ThreeDimDataLineChartState(this.eventStream);
+  _ThreeDimDataLineChartState();
 
   @override
   initState() {
@@ -118,7 +117,7 @@ class _ThreeDimDataLineChartState extends State<ThreeDimDataLineChart> {
     displayedZ =
         Series(id: "z", data: data, domainFn: (event, index) => event.time, measureFn: (event, index) => event.z);
 
-    _subscription = eventStream.listen(
+    _subscription = widget.eventStream.listen(
       (event) => updateData(event),
     );
 
