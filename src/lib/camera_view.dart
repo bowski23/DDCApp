@@ -50,6 +50,7 @@ class _CameraViewState extends State<CameraView> {
   bool predicting = false;
   CustomPaint? customPaint;
   late bool isStreaming = false;
+  bool _isHorizontal = false;
 
   @override
   void initState() {
@@ -101,8 +102,13 @@ class _CameraViewState extends State<CameraView> {
   }
 
   Widget _body(BuildContext context, {bool isHorizontal = true}) {
+    _isHorizontal = isHorizontal;
     if (_controller == null || _controller!.value.isInitialized == false) {
       return Container();
+    }
+    double aspectRatio = Settings.instance.useMachineLearning.value ? 3.0 / 2.0 : 16.0 / 9.0;
+    if (!isHorizontal) {
+      aspectRatio = 1 / aspectRatio;
     }
 
     return Stack(children: [
@@ -113,12 +119,12 @@ class _CameraViewState extends State<CameraView> {
             child: Stack(
               fit: StackFit.loose,
               children: <Widget>[
-                CameraPreview(_controller!),
+                AspectRatio(aspectRatio: aspectRatio, child: CameraPreview(_controller!)),
                 // AspectRatio is there so the size variable of the painter gets set correctly,
                 // it has nothing to do with AspectRation itself, should be improved
                 if (customPaint != null)
                   AspectRatio(
-                    aspectRatio: 3.0 / 2.0,
+                    aspectRatio: aspectRatio,
                     child: customPaint!,
                   ),
               ],
@@ -276,6 +282,7 @@ class _CameraViewState extends State<CameraView> {
     }
     await _controller?.dispose();
     _controller = null;
+    customPaint = null;
   }
 
   Future _processCameraImage(CameraImage inputImage) async {
@@ -296,6 +303,7 @@ class _CameraViewState extends State<CameraView> {
       });
 
       // Data to be passed to inference isolate
+      //TODO: adjust orientation
       var isolateData = IsolateData(
           inputImage, classifier.interpreter!.address, classifier.labels!, cameras[_cameraIndex].sensorOrientation);
 

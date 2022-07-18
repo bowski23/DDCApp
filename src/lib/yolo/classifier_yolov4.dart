@@ -116,8 +116,9 @@ class Classifier {
   /// Only does something to the image if it doesn't meet the specified input sizes.
   TensorImage getProcessedImage(TensorImage inputImage, int imageRotation) {
     padSize = max(inputImage.height, inputImage.width);
+    int quarterRotations = ((imageRotation / 90 - 4) % 4).floor();
     imageProcessor ??= ImageProcessorBuilder()
-        .add(Rot90Op(3))
+        .add(Rot90Op(quarterRotations))
         .add(ResizeWithCropOrPadOp(padSize!, padSize!))
         .add(ResizeOp(inputSize, inputSize, ResizeMethod.BILINEAR))
         .add(NormalizeOp(0, 255))
