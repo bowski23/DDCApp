@@ -9,9 +9,14 @@ import 'package:path_provider/path_provider.dart';
 
 class SensorHelper {
   late SensorData _latest;
+  List<double> cpuTemps = [];
+  List<List<int>> cpuFreqs = [];
   bool _isRecording = false;
   File? _file;
   int _start = 0;
+
+  static const int maxTemps = 400;
+  static const int maxFreqs = 200;
 
   SensorHelper._();
 
@@ -30,7 +35,18 @@ class SensorHelper {
     Battery().batteryLevel.asStream().listen((event) => _latest.batteryLevel = event);
 
     if (Platform.isAndroid) {
-      CpuReader.cpuStream(16).listen((event) => _latest.cpuInfo = event);
+      CpuReader.cpuStream(50).listen((event) {
+        _latest.cpuInfo = event;
+
+        if (cpuTemps.length > maxTemps) cpuTemps.removeAt(0);
+        cpuTemps.add(event.cpuTemperature ?? 0);
+
+        for (int i = 0; i < cpuFreqs.length; i++) {
+          var list = cpuFreqs[i];
+          if (list.length > maxTemps) list.removeAt(0);
+          list.add(event.currentFrequencies![i]!);
+        }
+      });
     }
   }
 
@@ -42,6 +58,9 @@ class SensorHelper {
     CpuInfo? cpuInfo;
     if (Platform.isAndroid) {
       cpuInfo = await CpuReader.cpuInfo;
+      for (int i = 0; i < cpuInfo.numberOfCores!; i++) {
+        SensorHelper().cpuFreqs.add([]);
+      }
     }
     SensorHelper()._latest = SensorData(
         accel: ThreeDimDataWrapper.fromAccelerometer(accel),
@@ -49,6 +68,7 @@ class SensorHelper {
         gyro: ThreeDimDataWrapper.fromGyroscope(gyro),
         batteryLevel: batterylevel,
         cpuInfo: cpuInfo);
+
     SensorHelper().init();
   }
 

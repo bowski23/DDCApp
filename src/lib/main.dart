@@ -34,6 +34,8 @@ Future<void> main() async {
         )
       ],
       child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        debugShowMaterialGrid: false,
         home: const CameraView(
           title: 'Camera',
         ),
